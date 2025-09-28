@@ -5,8 +5,17 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from .admin import admin_router
+from .auth import auth_router
+from .unified import router as unified_router
+from .web import web_router
 
-api_router = APIRouter(prefix="/api")
+api_router = APIRouter()
+
+# Include auth routes
+api_router.include_router(auth_router)
+
+# Include unified warehouse routes
+api_router.include_router(unified_router)
 
 
 @api_router.get("/status", tags=["monitoring"], summary="API status endpoint")

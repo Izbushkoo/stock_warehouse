@@ -71,6 +71,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    volumes:
+      - ./alembic:/app/alembic
+      - ./src:/app/src
     ports:
       - "${API_PORT}:8000"
 

@@ -25,7 +25,6 @@ class TelegramNotifier:
             self._client = None
             self._enabled = False
             return
-
         configured_token = bot_token or settings.telegram.bot_token
         self.bot_token = configured_token
         self.critical_chat_id = settings.telegram.critical_chat_id

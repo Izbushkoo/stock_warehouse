@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Admin Dashboard - Unified Warehouse{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-4 py-10">
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-3xl font-semibold text-gray-900">Администрирование</h1>
+            <p class="mt-2 text-sm text-gray-600">Сводная панель состояния складской системы и быстрых действий.</p>
+        </div>
+    </div>
+
+    <dl class="mt-8 grid gap-6 sm:grid-cols-3">
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Пользователей</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{{ stats.users }}</dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Складов</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{{ stats.warehouses }}</dd>
+        </div>
+        <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+            <dt class="truncate text-sm font-medium text-gray-500">Грантов доступа</dt>
+            <dd class="mt-1 text-3xl font-semibold tracking-tight text-gray-900">{{ stats.access_grants }}</dd>
+        </div>
+    </dl>
+
+    <div class="mt-10 grid gap-6 lg:grid-cols-2">
+        <div class="rounded-lg bg-white p-6 shadow">
+            <h2 class="text-lg font-semibold text-gray-900">Недавние пользователи</h2>
+            <p class="mt-1 text-sm text-gray-500">Последние созданные учётные записи и их активность.</p>
+            {% if recent_users %}
+            <ul class="mt-4 divide-y divide-gray-200">
+                {% for entry in recent_users %}
+                <li class="py-3">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p class="text-sm font-medium text-gray-900">{{ entry.user_display_name }}</p>
+                            <p class="text-sm text-gray-500">{{ entry.user_email }}</p>
+                        </div>
+                        <div class="text-right text-xs text-gray-500">
+                            <p>Создан: {{ entry.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p>Последний вход: {{ entry.last_login_at.strftime('%Y-%m-%d %H:%M') if entry.last_login_at else 'никогда' }}</p>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+            {% else %}
+            <p class="mt-4 text-sm text-gray-500">Пока нет созданных пользователей.</p>
+            {% endif %}
+        </div>
+        <div class="rounded-lg bg-white p-6 shadow">
+            <h2 class="text-lg font-semibold text-gray-900">Быстрые действия</h2>
+            <p class="mt-1 text-sm text-gray-500">Самые востребованные сценарии управления доступами.</p>
+            <div class="mt-4 space-y-3">
+                <a href="/admin/users" class="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-left transition hover:border-primary-500 hover:text-primary-600">
+                    <span>
+                        <span class="block text-sm font-medium">Управление пользователями</span>
+                        <span class="block text-xs text-gray-500">Создание, блокировка и удаление аккаунтов</span>
+                    </span>
+                    <span class="text-lg">→</span>
+                </a>
+                <a href="/admin/permissions" class="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-left transition hover:border-primary-500 hover:text-primary-600">
+                    <span>
+                        <span class="block text-sm font-medium">Права доступа</span>
+                        <span class="block text-xs text-gray-500">Обзор и изменение выданных грантов</span>
+                    </span>
+                    <span class="text-lg">→</span>
+                </a>
+                <a href="/admin/warehouses" class="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-left transition hover:border-primary-500 hover:text-primary-600">
+                    <span>
+                        <span class="block text-sm font-medium">Справочник складов</span>
+                        <span class="block text-xs text-gray-500">Перечень доступных складских площадок</span>
+                    </span>
+                    <span class="text-lg">→</span>
+                </a>
+                <a href="/docs" class="flex items-center justify-between rounded-md border border-gray-200 px-4 py-3 text-left transition hover:border-primary-500 hover:text-primary-600">
+                    <span>
+                        <span class="block text-sm font-medium">API документация</span>
+                        <span class="block text-xs text-gray-500">Swagger интерфейс и описание контрактов</span>
+                    </span>
+                    <span class="text-lg">→</span>
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

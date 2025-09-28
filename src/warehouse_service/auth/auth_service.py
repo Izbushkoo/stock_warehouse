@@ -2,27 +2,40 @@
 
 from __future__ import annotations
 
-import secrets
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 import bcrypt
 import jwt
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from warehouse_service.models.unified import AppUser
-from warehouse_service.auth.models import LoginRequest, TokenResponse, UserResponse, CreateUserRequest
+from warehouse_service.auth.models import (
+    CreateUserRequest,
+    LoginRequest,
+    TokenResponse,
+    UserResponse,
+)
+from warehouse_service.config import get_settings
+from warehouse_service.models.unified import AppUser, WarehouseAccessGrant
 
 
 class AuthService:
     """Service for authentication and user management."""
     
-    def __init__(self, session: Session, secret_key: str = None):
+    def __init__(
+        self,
+        session: Session,
+        secret_key: str | None = None,
+        algorithm: str | None = None,
+        token_expire_hours: int | None = None,
+    ):
         self.session = session
-        self.secret_key = secret_key or secrets.token_urlsafe(32)
-        self.algorithm = "HS256"
-        self.token_expire_hours = 24
+        security_settings = get_settings().security
+        self.secret_key = secret_key or security_settings.jwt_secret
+        self.algorithm = algorithm or security_settings.jwt_algorithm
+        self.token_expire_hours = token_expire_hours or security_settings.jwt_expire_hours
     
     def authenticate_user(self, email: str, password: str) -> Optional[AppUser]:
         """Authenticate user by email and password."""
@@ -124,8 +137,75 @@ class AuthService:
         self.session.add(user)
         self.session.commit()
         self.session.refresh(user)
-        
+
         return user
+
+    def list_users(self) -> List[AppUser]:
+        """Return all application users ordered by email."""
+        stmt = select(AppUser).order_by(AppUser.user_email)
+        return list(self.session.exec(stmt))
+
+    def get_user(self, user_id: UUID) -> Optional[AppUser]:
+        """Get user by identifier."""
+        return self.session.get(AppUser, user_id)
+
+    def update_user(
+        self,
+        user_id: UUID,
+        *,
+        email: str,
+        display_name: str,
+        is_active: bool,
+        password: Optional[str] = None,
+    ) -> AppUser:
+        """Update user fields."""
+        user = self.session.get(AppUser, user_id)
+
+        if not user:
+            raise ValueError("User not found")
+
+        if email != user.user_email:
+            existing = self.session.exec(
+                select(AppUser).where(AppUser.user_email == email)
+            ).first()
+            if existing:
+                raise ValueError(f"User with email {email} already exists")
+
+        user.user_email = email
+        user.user_display_name = display_name
+        user.is_active = is_active
+
+        if password:
+            user.password_hash = self._hash_password(password)
+
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+
+        return user
+
+    def delete_user(self, user_id: UUID) -> None:
+        """Delete user and related access grants."""
+        user = self.session.get(AppUser, user_id)
+
+        if not user:
+            raise ValueError("User not found")
+
+        grants = self.session.exec(
+            select(WarehouseAccessGrant).where(
+                WarehouseAccessGrant.app_user_id == user_id
+            )
+        ).all()
+
+        try:
+            for grant in grants:
+                self.session.delete(grant)
+
+            self.session.delete(user)
+            self.session.commit()
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise ValueError("Cannot delete user due to related records") from exc
     
     def change_password(self, user_id: UUID, current_password: str, new_password: str) -> bool:
         """Change user password."""

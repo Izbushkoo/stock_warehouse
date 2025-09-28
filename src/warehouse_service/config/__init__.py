@@ -32,6 +32,9 @@ class TelegramSettings(BaseModel):
 class SecuritySettings(BaseModel):
     superadmin_email: str
     superadmin_password: str
+    jwt_secret: str
+    jwt_algorithm: str = "HS256"
+    jwt_expire_hours: int = 24
 
 
 class Settings(BaseSettings):
@@ -68,6 +71,9 @@ class Settings(BaseSettings):
 
     superadmin_email: str = Field(alias="SUPERADMIN_EMAIL")
     superadmin_password: str = Field(alias="SUPERADMIN_PASSWORD")
+    jwt_secret: str = Field(default="dev-secret", alias="JWT_SECRET")
+    jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
+    jwt_expire_hours: int = Field(default=24, alias="JWT_EXPIRE_HOURS")
 
     _database: DatabaseSettings = PrivateAttr()
     _redis: RedisSettings = PrivateAttr()
@@ -110,6 +116,9 @@ class Settings(BaseSettings):
             SecuritySettings(
                 superadmin_email=self.superadmin_email,
                 superadmin_password=self.superadmin_password,
+                jwt_secret=self.jwt_secret,
+                jwt_algorithm=self.jwt_algorithm,
+                jwt_expire_hours=self.jwt_expire_hours,
             ),
         )
 

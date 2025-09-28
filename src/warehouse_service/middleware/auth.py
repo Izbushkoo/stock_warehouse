@@ -33,6 +33,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/status",
         "/api/auth/login",
         "/api/auth/register",
+        "/auth/login",
+        "/auth/register",
+        "/register",
         "/static",
         "/favicon.ico"
     }
@@ -43,6 +46,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/permissions", 
         "/api/auth/change-password",
         "/api/auth/logout",
+        "/auth/logout",
         "/admin"
     }
     

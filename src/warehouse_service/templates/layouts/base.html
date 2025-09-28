@@ -1,11 +1,194 @@
-{# Base layout placeholder - will be extended with real UI components. #}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
   <head>
     <meta charset="utf-8" />
-    <title>{{ title or "Warehouse" }}</title>
+    <title>{{ title or "Warehouse Admin" }}</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg-color: #f5f6fa;
+        --fg-color: #1f2933;
+        --accent-color: #2563eb;
+        --muted-color: #6b7280;
+        --card-bg: #ffffff;
+        --border-color: #d1d5db;
+        font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg-color);
+        color: var(--fg-color);
+      }
+
+      a {
+        color: var(--accent-color);
+        text-decoration: none;
+      }
+
+      a:hover,
+      a:focus {
+        text-decoration: underline;
+      }
+
+      .app-shell {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+      }
+
+      header.app-header {
+        padding: 1.5rem 2rem 1rem;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+      }
+
+      header.app-header h1 {
+        margin: 0;
+        font-size: 1.25rem;
+        font-weight: 600;
+      }
+
+      nav.app-nav {
+        display: flex;
+        gap: 1rem;
+        padding: 0.5rem 2rem 1rem;
+        background: var(--card-bg);
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      nav.app-nav a {
+        font-weight: 500;
+        color: var(--muted-color);
+        padding: 0.35rem 0.6rem;
+        border-radius: 0.5rem;
+      }
+
+      nav.app-nav a.active,
+      nav.app-nav a:hover,
+      nav.app-nav a:focus {
+        color: var(--accent-color);
+        background: rgba(37, 99, 235, 0.12);
+      }
+
+      main.app-content {
+        flex: 1;
+        padding: 2rem;
+      }
+
+      .page-header {
+        margin-bottom: 1.5rem;
+      }
+
+      .page-header h2 {
+        margin: 0;
+        font-size: 1.75rem;
+        font-weight: 600;
+      }
+
+      .page-header p {
+        margin: 0.35rem 0 0;
+        color: var(--muted-color);
+      }
+
+      .card {
+        background: var(--card-bg);
+        border-radius: 1rem;
+        border: 1px solid var(--border-color);
+        padding: 1.5rem;
+        box-shadow: 0 10px 15px -10px rgba(15, 23, 42, 0.2);
+      }
+
+      table.data-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 1rem;
+        font-size: 0.95rem;
+      }
+
+      table.data-table th,
+      table.data-table td {
+        padding: 0.75rem 0.85rem;
+        text-align: left;
+        border-bottom: 1px solid var(--border-color);
+      }
+
+      table.data-table th {
+        font-size: 0.8rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--muted-color);
+      }
+
+      table.data-table tbody tr:hover {
+        background: rgba(37, 99, 235, 0.06);
+      }
+
+      .empty-state {
+        padding: 2rem;
+        text-align: center;
+        color: var(--muted-color);
+        border: 1px dashed var(--border-color);
+        border-radius: 0.75rem;
+        background: rgba(15, 23, 42, 0.02);
+      }
+
+      .grid-two-column {
+        display: grid;
+        gap: 1.5rem;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      }
+
+      .meta-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+      }
+
+      .meta-list li {
+        padding: 0.4rem 0;
+        border-bottom: 1px solid var(--border-color);
+        display: flex;
+        justify-content: space-between;
+        gap: 1rem;
+        font-size: 0.9rem;
+      }
+
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.35rem;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.8rem;
+        border-radius: 9999px;
+        background: rgba(37, 99, 235, 0.12);
+        color: var(--accent-color);
+        font-weight: 500;
+      }
+
+      footer.app-footer {
+        padding: 1rem 2rem 2rem;
+        color: var(--muted-color);
+        font-size: 0.85rem;
+      }
+    </style>
   </head>
   <body>
-    {% block content %}{% endblock %}
+    <div class="app-shell">
+      <header class="app-header">
+        <h1>Панель администрирования склада</h1>
+      </header>
+      <nav class="app-nav">
+        <a href="/admin/roles" class="{% if request.url.path.startswith('/admin/roles') %}active{% endif %}">Роли</a>
+        <a href="/admin/permissions" class="{% if request.url.path.startswith('/admin/permissions') %}active{% endif %}">Разрешения</a>
+      </nav>
+      <main class="app-content">
+        {% block content %}{% endblock %}
+      </main>
+      <footer class="app-footer">
+        Управление ролями и разрешениями объединённого сервиса.
+      </footer>
+    </div>
   </body>
 </html>

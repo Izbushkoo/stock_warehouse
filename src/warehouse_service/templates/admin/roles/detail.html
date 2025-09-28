@@ -1,0 +1,61 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+  <div class="page-header">
+    <h2>{{ role.name }}</h2>
+    <p>{{ role.description or "Роль без описания" }}</p>
+  </div>
+  <div class="grid-two-column">
+    <div class="card">
+      <h3>Сводка</h3>
+      <ul class="meta-list">
+        <li><span>Идентификатор</span><strong>#{{ role.id }}</strong></li>
+        <li><span>Пользователей</span><strong>{{ members|length }}</strong></li>
+        <li><span>Разрешений</span><strong>{{ permissions|length }}</strong></li>
+        <li><span>Создано</span><strong>{{ role.created_at or "—" }}</strong></li>
+        <li><span>Обновлено</span><strong>{{ role.updated_at or "—" }}</strong></li>
+      </ul>
+    </div>
+    <div class="card">
+      <h3>Участники</h3>
+      {% if members %}
+        <ul class="meta-list">
+          {% for member in members %}
+            <li>
+              <span>{{ member.email }}</span>
+              <span>{{ member.assigned_at or "—" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="empty-state">К роли пока не привязаны пользователи.</div>
+      {% endif %}
+    </div>
+  </div>
+  <div class="card" style="margin-top: 1.5rem;">
+    <h3>Разрешения роли</h3>
+    {% if permissions %}
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Action</th>
+            <th>Описание</th>
+            <th>Назначено</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for permission in permissions %}
+            <tr>
+              <td>{{ permission.scope }}</td>
+              <td>{{ permission.action }}</td>
+              <td>{{ permission.description or "—" }}</td>
+              <td>{{ permission.assigned_at or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <div class="empty-state">Для роли пока не назначены разрешения.</div>
+    {% endif %}
+  </div>
+{% endblock %}

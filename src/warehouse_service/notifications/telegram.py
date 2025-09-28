@@ -30,8 +30,8 @@ class TelegramNotifier:
                 "Telegram notifications disabled: configuration is incomplete"
             )
             self.bot_token = ""
-            self.critical_chat_id = None
-            self.health_chat_id = None
+            self.critical_chat_id = 0
+            self.health_chat_id = 0
             self._client = None
             self._enabled = False
             return
@@ -54,7 +54,7 @@ class TelegramNotifier:
         if not self._enabled:
             logger.debug("Skipping Telegram notification because notifier is disabled")
             return
-        if chat_id is None:
+        if not chat_id:
             logger.warning("Skipping Telegram notification because chat id is not configured")
             return
         if self._client is None:  # Safety net for type checkers

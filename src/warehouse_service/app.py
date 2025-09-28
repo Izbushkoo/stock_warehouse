@@ -7,7 +7,7 @@ from fastapi import FastAPI
 from warehouse_service import __version__
 from warehouse_service.config import get_settings
 from warehouse_service.logging import configure_logging
-from warehouse_service.routes import api_router
+from warehouse_service.routes import admin_router, api_router
 
 
 def create_app() -> FastAPI:
@@ -22,6 +22,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(api_router)
+    app.include_router(admin_router)
 
     @app.get("/health", tags=["monitoring"], summary="Return service health status")
     async def healthcheck() -> dict[str, str]:

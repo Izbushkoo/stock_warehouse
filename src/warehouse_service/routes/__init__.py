@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
+from .admin import admin_router
+
 api_router = APIRouter(prefix="/api")
 
 
@@ -12,4 +14,4 @@ async def status() -> dict[str, str]:
     return {"status": "ok"}
 
 
-__all__ = ["api_router"]
+__all__ = ["api_router", "admin_router"]

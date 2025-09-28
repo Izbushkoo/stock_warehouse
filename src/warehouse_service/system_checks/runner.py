@@ -6,8 +6,8 @@ import asyncio
 from dataclasses import dataclass
 from typing import Iterable, Protocol
 
-from psycopg import connect
 from redis import Redis
+from sqlalchemy import create_engine, text
 
 from warehouse_service.config import get_settings
 from warehouse_service.logging import logger
@@ -33,10 +33,10 @@ class DatabaseCheck:
     async def run(self) -> CheckResult:
         settings = get_settings()
         try:
-            with connect(settings.database.url, autocommit=True) as connection:
-                with connection.cursor() as cursor:
-                    cursor.execute("SELECT 1")
-                    cursor.fetchone()
+            engine = create_engine(settings.database.url)
+            with engine.connect() as connection:
+                result = connection.execute(text("SELECT 1"))
+                result.fetchone()
         except Exception as exc:  # pragma: no cover - real connection required
             return CheckResult(name=self.name, ok=False, details=str(exc))
         return CheckResult(name=self.name, ok=True, details="PostgreSQL reachable")

@@ -5,7 +5,8 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import DateTime, UniqueConstraint, func
+from sqlalchemy import DateTime, UniqueConstraint, func, Column
+
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 

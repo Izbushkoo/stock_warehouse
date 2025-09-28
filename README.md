@@ -14,13 +14,13 @@ The repository provides the baseline scaffolding for the merged warehouse platfo
    - `APP_RUNTIME=local` keeps the development profile (Uvicorn with two workers).
    - `APP_RUNTIME=production` switches the entrypoint to Gunicorn with six workers by default.
 
-3. Install local tooling directly from `pyproject.toml`:
+3. Install local tooling directly from `pyproject.toml` (creates a project-local `.venv`):
 
    ```bash
    make install
    ```
 
-   > ℹ️  The project intentionally uses `pip install -e .` even though it has a `pyproject.toml`. Pip is the PEP 517 front-end that reads the pyproject metadata and builds the editable package, so there is still a single dependency source of truth without introducing an extra package manager.
+   > ℹ️  The `install` target provisions (or reuses) `.venv` and runs `pip install -e .[dev]` inside it. This sidesteps the PEP 668 "externally managed environment" guardrail by avoiding the system interpreter altogether. You can either rely on `make` targets that call `./.venv/bin/...` directly or activate the environment manually via `source .venv/bin/activate` when working locally.
 
 ## Local development workflow
 

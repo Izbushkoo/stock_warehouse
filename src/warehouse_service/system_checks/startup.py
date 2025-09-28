@@ -20,7 +20,10 @@ async def main(notify: bool) -> int:
     if notify:
         notifier = TelegramNotifier()
         try:
-            await notifier.notify_startup(ok, summary)
+            try:
+                await notifier.notify_startup(ok, summary)
+            except Exception:
+                logger.exception("Failed to send startup notification")
         finally:
             await notifier.aclose()
     if ok:

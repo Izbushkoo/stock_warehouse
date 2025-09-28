@@ -19,19 +19,21 @@ def anyio_backend():
 
 
 
-def configure_base_env(monkeypatch, *, token: str, critical_id: str, health_id: str) -> None:
+def configure_core_env(monkeypatch) -> None:
+    """Populate environment variables required by core settings."""
 
     monkeypatch.setenv("APP_NAME", "Test App")
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost:5432/db")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
     monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
-
+    monkeypatch.setenv("CELERY_DB_SCHEDULER_URL", "postgresql+psycopg://user:pass@localhost:5432/db")
 
 
 def configure_base_env(monkeypatch, *, token: str, critical_id: str, health_id: str) -> None:
+    """Populate the full environment expected by the notifier tests."""
 
-    monkeypatch.setenv("CELERY_DB_SCHEDULER_URL", "postgresql+psycopg://user:pass@localhost:5432/db")
+    configure_core_env(monkeypatch)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", token)
     monkeypatch.setenv("TELEGRAM_CRITICAL_CHAT_ID", critical_id)
     monkeypatch.setenv("TELEGRAM_HEALTH_CHAT_ID", health_id)

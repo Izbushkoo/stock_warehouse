@@ -1,0 +1,35 @@
+{% extends "layouts/base.html" %}
+{% block content %}
+  <div class="page-header">
+    <h2>Разрешения</h2>
+    <p>Полный перечень разрешений и количество ролей, в которых они используются.</p>
+  </div>
+  {% if permissions %}
+    <div class="card">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Scope</th>
+            <th>Action</th>
+            <th>Описание</th>
+            <th>Ролей</th>
+            <th>Изменено</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for permission in permissions %}
+            <tr>
+              <td>{{ permission.scope }}</td>
+              <td>{{ permission.action }}</td>
+              <td>{{ permission.description or "—" }}</td>
+              <td><span class="badge">{{ permission.role_count }}</span></td>
+              <td>{{ permission.updated_at or "—" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% else %}
+    <div class="empty-state">Разрешения ещё не заведены.</div>
+  {% endif %}
+{% endblock %}

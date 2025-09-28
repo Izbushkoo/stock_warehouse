@@ -45,6 +45,7 @@ help:
 	@echo "  make celery-shell       Open a Celery shell in the active stack"
 
 install:
+
 	@# Provision a project-local virtual environment for tooling isolation
 	@if [ ! -d .venv ]; then \
 		$(PYTHON) -m venv .venv; \

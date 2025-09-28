@@ -9,6 +9,8 @@ from celery.schedules import crontab
 
 from warehouse_service.config import get_settings
 
+BEAT_SCHEMA = "celery_schema"
+
 settings = get_settings()
 
 celery = Celery(
@@ -20,8 +22,10 @@ celery = Celery(
 celery.conf.update(
     timezone=settings.timezone,
     enable_utc=False,
-    beat_scheduler="celery_sqlalchemy_scheduler.schedulers:DatabaseScheduler",
+    beat_scheduler="sqlalchemy_celery_beat.schedulers:DatabaseScheduler",
     beat_dburi=settings.redis.scheduler_url,
+    beat_schema=BEAT_SCHEMA,
+    beat_engine_options={"pool_pre_ping": True},
     beat_schedule={
         "daily-health-check": {
             "task": "warehouse_service.tasks.health.daily_health_check",

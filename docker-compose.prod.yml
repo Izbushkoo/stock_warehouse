@@ -91,17 +91,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    command:
-      [
-        "celery",
-        "-A",
-        "warehouse_service.tasks.celery_app:celery",
-        "beat",
-        "-l",
-        "info",
-        "-S",
-        "celery_sqlalchemy_scheduler.schedulers:DatabaseScheduler"
-      ]
+    command: ["/app/scripts/celery-beat-entrypoint.sh"]
     env_file:
       - .env
     environment:

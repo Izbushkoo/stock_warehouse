@@ -31,8 +31,8 @@ COPY ./scripts ./scripts
 # Expose src to Python for interactive shells and celery workers
 ENV PYTHONPATH=/app/src
 
-# Ensure the entrypoint is executable inside slim base images
-RUN chmod +x /app/scripts/entrypoint.sh
+# Ensure helper scripts are executable inside slim base images
+RUN chmod +x /app/scripts/*.sh
 
 # Delegate process supervision to the Bash entrypoint (runtime mode decided there)
 CMD ["/app/scripts/entrypoint.sh"]

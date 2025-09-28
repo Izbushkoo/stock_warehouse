@@ -136,10 +136,19 @@ prod-shell:
 	$(compose_prod) exec app bash
 
 celery-shell:
-	# Connect to the Celery shell using STACK=local (default) or STACK=prod
-	@stack=${STACK:-local}; \
-	if [ "$$stack" = "prod" ]; then \
-	$(compose_prod) exec worker celery shell -A warehouse_service.tasks.celery_app:celery; \
-	else \
-	$(compose_local) exec worker celery shell -A warehouse_service.tasks.celery_app:celery; \
-	fi
+        # Connect to the Celery shell using STACK=local (default) or STACK=prod
+        @stack=${STACK:-local}; \
+        if [ "$$stack" = "prod" ]; then \
+        $(compose_prod) exec worker celery shell -A warehouse_service.tasks.celery_app:celery; \
+        else \
+        $(compose_local) exec worker celery shell -A warehouse_service.tasks.celery_app:celery; \
+        fi
+
+celery-sync:
+        # Persist configured periodic tasks to the SQLAlchemy beat backend
+        @stack=${STACK:-local}; \
+        if [ "$$stack" = "prod" ]; then \
+        $(compose_prod) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
+        else \
+        $(compose_local) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
+        fi

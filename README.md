@@ -45,6 +45,7 @@ Additional helpers:
 
 - `make local-shell` – open a shell in the app container.
 - `make celery-shell` – open a Celery shell (override with `STACK=prod` for the production stack).
+- `make celery-sync` – sync configured periodic tasks into the SQLAlchemy-backed Celery beat tables.
 - `make check` – run Ruff linting followed by pytest.
 
 ## Production-oriented commands
@@ -71,7 +72,7 @@ make prod-down
 
 - **FastAPI** application served by Uvicorn (local) or Gunicorn (production) depending on `APP_RUNTIME`.
 - **SQLModel** with PostgreSQL for RBAC entities, inventory, and auditing layers.
-- **Celery** worker and beat leveraging the PostgreSQL-backed `celery_sqlalchemy_scheduler` for the daily 09:00 (Europe/Minsk) health report.
+- **Celery** worker and beat leveraging the PostgreSQL-backed `sqlalchemy-celery-beat` scheduler for the daily 09:00 (Europe/Minsk) health report.
 - **Redis** for background job brokering and cache-like features.
 - **Telegram** notifications for startup diagnostics and scheduled health summaries.
 

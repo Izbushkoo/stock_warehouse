@@ -1,0 +1,117 @@
+version: "3.9"
+
+# Shared environment anchors keep the service configuration readable for local dev
+x-app-environment: &app_env
+  APP_NAME: ${APP_NAME}
+  ENVIRONMENT: ${ENVIRONMENT}
+  API_HOST: ${API_HOST}
+  API_PORT: ${API_PORT}
+  LOG_LEVEL: ${LOG_LEVEL}
+  TZ: ${TZ}
+  DATABASE_URL: ${DATABASE_URL}
+  POSTGRES_HOST: ${POSTGRES_HOST}
+  POSTGRES_PORT: ${POSTGRES_PORT}
+  POSTGRES_DB: ${POSTGRES_DB}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+  REDIS_URL: ${REDIS_URL}
+  CELERY_BROKER_URL: ${CELERY_BROKER_URL}
+  CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
+  CELERY_DB_SCHEDULER_URL: ${CELERY_DB_SCHEDULER_URL}
+  TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+  TELEGRAM_CRITICAL_CHAT_ID: ${TELEGRAM_CRITICAL_CHAT_ID}
+  TELEGRAM_HEALTH_CHAT_ID: ${TELEGRAM_HEALTH_CHAT_ID}
+  SUPERADMIN_EMAIL: ${SUPERADMIN_EMAIL}
+  SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD}
+  SENTRY_DSN: ${SENTRY_DSN}
+  APP_RUNTIME: local
+  UVICORN_WORKERS: ${UVICORN_WORKERS:-2}
+
+services:
+  db:
+    image: postgres:15
+    # Use .env secrets to feed the database without leaking credentials in compose
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["/app/scripts/entrypoint.sh"]
+    env_file:
+      - .env
+    environment:
+      <<: *app_env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./:/app
+    ports:
+      - "${API_PORT}:8000"
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ["celery", "-A", "warehouse_service.tasks.celery_app:celery", "worker", "-l", "info"]
+    env_file:
+      - .env
+    environment:
+      <<: *app_env
+    depends_on:
+      app:
+        condition: service_started
+
+  beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command:
+      [
+        "celery",
+        "-A",
+        "warehouse_service.tasks.celery_app:celery",
+        "beat",
+        "-l",
+        "info",
+        "-S",
+        "celery_sqlalchemy_scheduler.schedulers:DatabaseScheduler"
+      ]
+    env_file:
+      - .env
+    environment:
+      <<: *app_env
+    depends_on:
+      worker:
+        condition: service_started
+
+volumes:
+  db_data:
+  redis_data:

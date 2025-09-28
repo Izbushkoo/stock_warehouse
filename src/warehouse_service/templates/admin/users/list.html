@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}Пользователи - Unified Warehouse{% endblock %}
+
+{% block content %}
+<div class="mx-auto w-full max-w-6xl px-4 py-10">
+    <div class="sm:flex sm:items-center sm:justify-between">
+        <div>
+            <h1 class="text-3xl font-semibold text-gray-900">Пользователи</h1>
+            <p class="mt-2 text-sm text-gray-600">Создание, просмотр и удаление учётных записей склада. Хранение паролей ведётся в виде хэшей bcrypt.</p>
+        </div>
+    </div>
+
+    <div class="mt-8 rounded-lg bg-white p-6 shadow">
+        <h2 class="text-lg font-semibold text-gray-900">Новая учётная запись</h2>
+        <form method="post" action="/admin/users/create" class="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+                <label for="email" class="block text-sm font-medium text-gray-700">Email</label>
+                <input id="email" name="email" type="email" required class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" placeholder="user@example.com">
+            </div>
+            <div>
+                <label for="display_name" class="block text-sm font-medium text-gray-700">Имя для отображения</label>
+                <input id="display_name" name="display_name" type="text" required class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" placeholder="Сотрудник склада">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700">Пароль</label>
+                <input id="password" name="password" type="password" minlength="6" required class="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500" placeholder="Придумайте сложный пароль">
+            </div>
+            <div class="flex items-center pt-6">
+                <input id="is_active" name="is_active" type="checkbox" value="true" checked class="h-4 w-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500">
+                <label for="is_active" class="ml-2 block text-sm text-gray-700">Аккаунт активен сразу после создания</label>
+            </div>
+            <div class="sm:col-span-2">
+                <button type="submit" class="inline-flex items-center rounded-md bg-primary-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+                    Создать пользователя
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="mt-8 overflow-hidden rounded-lg bg-white shadow">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Email</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Имя</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Статус</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Последний вход</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Хэш пароля</th>
+                        <th scope="col" class="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">Грантов</th>
+                        <th scope="col" class="px-6 py-3"></th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200 bg-white">
+                    {% for user in users %}
+                    <tr>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ user.email }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-900">{{ user.display_name }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm">
+                            {% if user.is_active %}
+                                <span class="inline-flex items-center rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-medium text-green-800">Активен</span>
+                            {% else %}
+                                <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Заблокирован</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.last_login.strftime('%Y-%m-%d %H:%M') if user.last_login else 'никогда' }}</td>
+                        <td class="px-6 py-4 text-xs font-mono text-gray-500">{{ user.password_hash }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">{{ user.grant_count }}</td>
+                        <td class="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
+                            <a href="/admin/users/{{ user.id }}" class="text-primary-600 hover:text-primary-900">Настроить</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="px-6 py-6 text-center text-sm text-gray-500">Пользователи ещё не созданы.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

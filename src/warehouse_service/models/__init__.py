@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import Column, DateTime, UniqueConstraint, func
+from sqlalchemy import DateTime, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -14,19 +14,19 @@ class TimestampMixin(SQLModel, table=False):
     """Common timestamp columns."""
 
     created_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            server_default=func.now(),
-        ),
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        sa_type=DateTime(timezone=True),
+        sa_column_kwargs={"server_default": func.now()},
     )
     updated_at: datetime = Field(
-        sa_column=Column(
-            DateTime(timezone=True),
-            nullable=False,
-            server_default=func.now(),
-            onupdate=func.now(),
-        ),
+        default_factory=lambda: datetime.now(timezone.utc),
+        nullable=False,
+        sa_type=DateTime(timezone=True),
+        sa_column_kwargs={
+            "server_default": func.now(),
+            "onupdate": func.now(),
+        },
     )
 
 

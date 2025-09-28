@@ -18,12 +18,19 @@ def anyio_backend():
     return "asyncio"
 
 
+
 def configure_base_env(monkeypatch, *, token: str, critical_id: str, health_id: str) -> None:
+
     monkeypatch.setenv("APP_NAME", "Test App")
     monkeypatch.setenv("DATABASE_URL", "postgresql+psycopg://user:pass@localhost:5432/db")
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     monkeypatch.setenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
     monkeypatch.setenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+
+
+
+def configure_base_env(monkeypatch, *, token: str, critical_id: str, health_id: str) -> None:
+
     monkeypatch.setenv("CELERY_DB_SCHEDULER_URL", "postgresql+psycopg://user:pass@localhost:5432/db")
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", token)
     monkeypatch.setenv("TELEGRAM_CRITICAL_CHAT_ID", critical_id)
@@ -63,3 +70,19 @@ async def test_notifier_skips_when_chat_not_configured(monkeypatch):
     await notifier.aclose()
 
     assert not calls
+
+@pytest.mark.anyio(backend="asyncio")
+async def test_notifier_handles_missing_configuration(monkeypatch):
+    configure_core_env(monkeypatch)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CRITICAL_CHAT_ID", raising=False)
+    monkeypatch.delenv("TELEGRAM_HEALTH_CHAT_ID", raising=False)
+
+    notifier = TelegramNotifier()
+
+    assert notifier._enabled is False  # type: ignore[attr-defined]
+    assert notifier.critical_chat_id == 0
+
+    await notifier.notify_startup(ok=True, details="All good")
+    await notifier.aclose()
+

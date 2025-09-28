@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import httpx
+from pydantic import ValidationError
 
 from warehouse_service.config import get_settings
 from warehouse_service.logging import logger
@@ -12,7 +13,18 @@ class TelegramNotifier:
     """Send operational notifications to Telegram chats."""
 
     def __init__(self, bot_token: str | None = None) -> None:
-        settings = get_settings()
+        try:
+            settings = get_settings()
+        except ValidationError:
+            logger.info(
+                "Telegram notifications disabled: configuration is incomplete"
+            )
+            self.bot_token = ""
+            self.critical_chat_id = 0
+            self.health_chat_id = 0
+            self._client = None
+            self._enabled = False
+            return
         configured_token = bot_token or settings.telegram.bot_token
         self.bot_token = configured_token
         self.critical_chat_id = settings.telegram.critical_chat_id

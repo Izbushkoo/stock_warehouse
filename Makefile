@@ -45,12 +45,13 @@ help:
 	@echo "  make celery-shell       Open a Celery shell in the active stack"
 
 install:
-        # Provision a project-local virtual environment for tooling isolation
-        @if [ ! -d .venv ]; then \
-                $(PYTHON) -m venv .venv; \
-        fi
-        # Install editable project dependencies using the local virtual environment
-        ./.venv/bin/pip install -e .[dev]
+
+	@# Provision a project-local virtual environment for tooling isolation
+	@if [ ! -d .venv ]; then \
+		$(PYTHON) -m venv .venv; \
+	fi
+	@# Install editable project dependencies using the local virtual environment
+	@./.venv/bin/pip install -e .[dev]
 
 lint:
 	# Static code analysis keeps quality high before hitting CI

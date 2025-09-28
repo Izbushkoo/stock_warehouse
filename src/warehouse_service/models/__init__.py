@@ -11,27 +11,29 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlmodel import Field, Relationship, SQLModel
 
 
-class TimestampMixin(SQLModel, table=False):
-    """Common timestamp columns."""
 
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={"server_default": func.now()},
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        nullable=False,
-        sa_type=DateTime(timezone=True),
-        sa_column_kwargs={
-            "server_default": func.now(),
-            "onupdate": func.now(),
-        },
+def created_at_field() -> Field:
+    return Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+        ),
     )
 
 
-class Warehouse(TimestampMixin, table=True):
+def updated_at_field() -> Field:
+    return Field(
+        sa_column=Column(
+            DateTime(timezone=True),
+            nullable=False,
+            server_default=func.now(),
+            onupdate=func.now(),
+        ),
+    )
+
+
+class Warehouse(SQLModel, table=True):
     __tablename__ = "warehouses"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -39,11 +41,14 @@ class Warehouse(TimestampMixin, table=True):
     code: str = Field(index=True, unique=True)
     is_primary: bool = Field(default=False)
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     inventories: list["InventoryItem"] = Relationship(back_populates="warehouse")
     permissions: list["WarehousePermission"] = Relationship(back_populates="warehouse")
 
 
-class User(TimestampMixin, table=True):
+class User(SQLModel, table=True):
     __tablename__ = "users"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -51,23 +56,35 @@ class User(TimestampMixin, table=True):
     hashed_password: str
     is_active: bool = Field(default=True)
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     roles: list["UserRole"] = Relationship(back_populates="user")
     warehouse_permissions: list["WarehousePermission"] = Relationship(back_populates="user")
     audits: list["AuditLog"] = Relationship(back_populates="actor")
+    owned_inventories: list["Inventory"] = Relationship(back_populates="owner")
+    inventory_accesses: list["InventoryAccess"] = Relationship(back_populates="user")
+
+    @property
+    def accessible_inventories(self) -> list["Inventory"]:
+        return [access.inventory for access in self.inventory_accesses]
 
 
-class Role(TimestampMixin, table=True):
+class Role(SQLModel, table=True):
     __tablename__ = "roles"
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
     description: str | None = None
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     permissions: list["RolePermission"] = Relationship(back_populates="role")
     users: list["UserRole"] = Relationship(back_populates="role")
 
 
-class Permission(TimestampMixin, table=True):
+class Permission(SQLModel, table=True):
     __tablename__ = "permissions"
     __table_args__ = (
         UniqueConstraint("scope", "action", name="uq_permission_scope_action"),
@@ -78,10 +95,13 @@ class Permission(TimestampMixin, table=True):
     action: str = Field(index=True)
     description: str | None = None
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     roles: list["RolePermission"] = Relationship(back_populates="permission")
 
 
-class UserRole(TimestampMixin, table=True):
+class UserRole(SQLModel, table=True):
     __tablename__ = "user_roles"
     __table_args__ = (
         UniqueConstraint("user_id", "role_id", name="uq_user_roles_user_role"),
@@ -91,11 +111,14 @@ class UserRole(TimestampMixin, table=True):
     user_id: int = Field(foreign_key="users.id")
     role_id: int = Field(foreign_key="roles.id")
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     user: User = Relationship(back_populates="roles")
     role: Role = Relationship(back_populates="users")
 
 
-class RolePermission(TimestampMixin, table=True):
+class RolePermission(SQLModel, table=True):
     __tablename__ = "role_permissions"
     __table_args__ = (
         UniqueConstraint("role_id", "permission_id", name="uq_role_permissions_pair"),
@@ -105,11 +128,14 @@ class RolePermission(TimestampMixin, table=True):
     role_id: int = Field(foreign_key="roles.id")
     permission_id: int = Field(foreign_key="permissions.id")
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     role: Role = Relationship(back_populates="permissions")
     permission: Permission = Relationship(back_populates="roles")
 
 
-class WarehousePermission(TimestampMixin, table=True):
+class WarehousePermission(SQLModel, table=True):
     __tablename__ = "warehouse_permissions"
     __table_args__ = (
         UniqueConstraint("warehouse_id", "user_id", "permission_id", name="uq_warehouse_permission"),
@@ -120,12 +146,72 @@ class WarehousePermission(TimestampMixin, table=True):
     user_id: int = Field(foreign_key="users.id")
     permission_id: int = Field(foreign_key="permissions.id")
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     warehouse: Warehouse = Relationship(back_populates="permissions")
     user: User = Relationship(back_populates="warehouse_permissions")
     permission: Permission = Relationship()
 
 
-class Product(TimestampMixin, table=True):
+class InventoryMembership(SQLModel, table=True):
+    __tablename__ = "inventory_memberships"
+
+    inventory_id: Optional[int] = Field(
+        default=None,
+        foreign_key="inventories.id",
+        primary_key=True,
+    )
+    inventory_item_id: Optional[int] = Field(
+        default=None,
+        foreign_key="inventory_items.id",
+        primary_key=True,
+    )
+
+
+class Inventory(SQLModel, table=True):
+    __tablename__ = "inventories"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(index=True)
+    owner_id: int = Field(foreign_key="users.id")
+    description: str | None = None
+
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
+    owner: User = Relationship(back_populates="owned_inventories")
+    items: list["InventoryItem"] = Relationship(
+        back_populates="inventories",
+        link_model=InventoryMembership,
+    )
+    accesses: list["InventoryAccess"] = Relationship(back_populates="inventory")
+
+    @property
+    def shared_with(self) -> list[User]:
+        return [access.user for access in self.accesses]
+
+
+class InventoryAccess(SQLModel, table=True):
+    __tablename__ = "inventory_accesses"
+    __table_args__ = (
+        UniqueConstraint("inventory_id", "user_id", name="uq_inventory_access"),
+    )
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    inventory_id: int = Field(foreign_key="inventories.id")
+    user_id: int = Field(foreign_key="users.id")
+    granted_by_id: int | None = Field(default=None, foreign_key="users.id")
+
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
+    inventory: Inventory = Relationship(back_populates="accesses")
+    user: User = Relationship(back_populates="inventory_accesses")
+    granted_by: Optional[User] = Relationship()
+
+
+class Product(SQLModel, table=True):
     __tablename__ = "products"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -133,11 +219,14 @@ class Product(TimestampMixin, table=True):
     name: str
     description: str | None = None
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     inventories: list["InventoryItem"] = Relationship(back_populates="product")
     audits: list["AuditLog"] = Relationship(back_populates="product")
 
 
-class InventoryItem(TimestampMixin, table=True):
+class InventoryItem(SQLModel, table=True):
     __tablename__ = "inventory_items"
     __table_args__ = (
         UniqueConstraint("warehouse_id", "product_id", name="uq_inventory_warehouse_product"),
@@ -149,12 +238,19 @@ class InventoryItem(TimestampMixin, table=True):
     quantity: int = Field(default=0)
     reserved: int = Field(default=0)
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     warehouse: Warehouse = Relationship(back_populates="inventories")
     product: Product = Relationship(back_populates="inventories")
     audits: list["AuditLog"] = Relationship(back_populates="inventory_item")
+    inventories: list["Inventory"] = Relationship(
+        back_populates="items",
+        link_model=InventoryMembership,
+    )
 
 
-class AuditLog(TimestampMixin, table=True):
+class AuditLog(SQLModel, table=True):
     __tablename__ = "audit_logs"
 
     id: Optional[int] = Field(default=None, primary_key=True)
@@ -166,6 +262,9 @@ class AuditLog(TimestampMixin, table=True):
     payload: dict | None = Field(default=None, sa_column=Column(JSONB))
     note: str | None = None
 
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+
     actor: Optional[User] = Relationship(back_populates="audits")
     product: Optional[Product] = Relationship(back_populates="audits")
     inventory_item: Optional[InventoryItem] = Relationship(back_populates="audits")
@@ -176,12 +275,14 @@ metadata = SQLModel.metadata
 
 __all__ = [
     "AuditLog",
+    "Inventory",
+    "InventoryAccess",
     "InventoryItem",
+    "InventoryMembership",
     "Permission",
     "Product",
     "Role",
     "RolePermission",
-    "TimestampMixin",
     "User",
     "UserRole",
     "Warehouse",

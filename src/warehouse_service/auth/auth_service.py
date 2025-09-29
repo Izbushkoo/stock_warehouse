@@ -21,7 +21,7 @@ from warehouse_service.auth.models import (
     UserResponse,
 )
 from warehouse_service.config import get_settings
-from warehouse_service.models.unified import AppUser, WarehouseAccessGrant
+from warehouse_service.models.unified import AppUser, Permission
 
 
 class AuthService:
@@ -152,63 +152,7 @@ class AuthService:
         """Get user by identifier."""
         return self.session.get(AppUser, user_id)
 
-    def update_user(
-        self,
-        user_id: UUID,
-        *,
-        email: str,
-        display_name: str,
-        is_active: bool,
-        password: Optional[str] = None,
-    ) -> AppUser:
-        """Update user fields."""
-        user = self.session.get(AppUser, user_id)
 
-        if not user:
-            raise ValueError("User not found")
-
-        if email != user.user_email:
-            existing = self.session.exec(
-                select(AppUser).where(AppUser.user_email == email)
-            ).first()
-            if existing:
-                raise ValueError(f"User with email {email} already exists")
-
-        user.user_email = email
-        user.user_display_name = display_name
-        user.is_active = is_active
-
-        if password:
-            user.password_hash = hash_password(password)
-
-        self.session.add(user)
-        self.session.commit()
-        self.session.refresh(user)
-
-        return user
-
-    def delete_user(self, user_id: UUID) -> None:
-        """Delete user and related access grants."""
-        user = self.session.get(AppUser, user_id)
-
-        if not user:
-            raise ValueError("User not found")
-
-        grants = self.session.exec(
-            select(WarehouseAccessGrant).where(
-                WarehouseAccessGrant.app_user_id == user_id
-            )
-        ).all()
-
-        try:
-            for grant in grants:
-                self.session.delete(grant)
-
-            self.session.delete(user)
-            self.session.commit()
-        except IntegrityError as exc:
-            self.session.rollback()
-            raise ValueError("Cannot delete user due to related records") from exc
     
     def change_password(self, user_id: UUID, current_password: str, new_password: str) -> bool:
         """Change user password."""
@@ -244,6 +188,175 @@ class AuthService:
         """Permanently delete user and all their soft deleted resources."""
         lifecycle_service = UserLifecycleService(self.session)
         return lifecycle_service.permanently_delete_user(user_id)
+    
+    def update_user_status(self, user_id: str, is_active: bool) -> AppUser:
+        """Update user active status."""
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            raise ValueError("Invalid user ID format")
+        
+        user = self.session.get(AppUser, user_uuid)
+        if not user:
+            raise ValueError("User not found")
+        
+        user.is_active = is_active
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        
+        return user
+    
+    def update_user_permissions(self, user_id: str, permissions_data: dict) -> AppUser:
+        """Update user permissions using the Permission system."""
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            raise ValueError("Invalid user ID format")
+        
+        user = self.session.get(AppUser, user_uuid)
+        if not user:
+            raise ValueError("User not found")
+        
+        from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType, PermissionLevel
+        
+        pm = PermissionManager(self.session)
+        
+        # Системный ресурс ID
+        system_resource_id = UUID("00000000-0000-0000-0000-000000000001")
+        
+        # Удаляем существующие системные разрешения
+        existing_system_perms = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_uuid,
+                Permission.resource_type == ResourceType.SYSTEM.value
+            )
+        ).all()
+        
+        for perm in existing_system_perms:
+            self.session.delete(perm)
+        
+        # Добавляем новые системные разрешения
+        if permissions_data.get("is_admin", False):
+            permission = Permission(
+                app_user_id=user_uuid,
+                resource_type=ResourceType.SYSTEM.value,
+                resource_id=system_resource_id,
+                permission_level=PermissionLevel.ADMIN.value,
+                granted_by=user_uuid,  # TODO: передавать ID того, кто выдает разрешения
+                is_active=True
+            )
+            self.session.add(permission)
+        
+        self.session.commit()
+        self.session.refresh(user)
+        return user
+    
+    def update_user_permissions_with_granter(self, user_id: str, permissions_data: dict, granted_by: UUID) -> AppUser:
+        """Update user permissions with proper granter tracking."""
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            raise ValueError("Invalid user ID format")
+        
+        user = self.session.get(AppUser, user_uuid)
+        if not user:
+            raise ValueError("User not found")
+        
+        from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType, PermissionLevel
+        
+        pm = PermissionManager(self.session)
+        
+        # Системный ресурс ID
+        system_resource_id = UUID("00000000-0000-0000-0000-000000000001")
+        
+        # Удаляем существующие системные разрешения
+        existing_system_perms = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_uuid,
+                Permission.resource_type == ResourceType.SYSTEM.value
+            )
+        ).all()
+        
+        for perm in existing_system_perms:
+            self.session.delete(perm)
+        
+        # Добавляем новые системные разрешения
+        if permissions_data.get("is_admin", False):
+            permission = Permission(
+                app_user_id=user_uuid,
+                resource_type=ResourceType.SYSTEM.value,
+                resource_id=system_resource_id,
+                permission_level=PermissionLevel.ADMIN.value,
+                granted_by=granted_by,
+                is_active=True
+            )
+            self.session.add(permission)
+        
+        self.session.commit()
+        self.session.refresh(user)
+        return user
+    
+    def update_user(self, user_id: str, user_data: dict) -> AppUser:
+        """Update user information with dict data."""
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            raise ValueError("Invalid user ID format")
+        
+        user = self.session.get(AppUser, user_uuid)
+        if not user:
+            raise ValueError("User not found")
+        
+        # Update allowed fields
+        if 'display_name' in user_data:
+            user.user_display_name = user_data['display_name']
+        
+        if 'email' in user_data:
+            # Check if email is already taken
+            existing = self.session.exec(
+                select(AppUser).where(
+                    AppUser.user_email == user_data['email'],
+                    AppUser.app_user_id != user_uuid
+                )
+            ).first()
+            if existing:
+                raise ValueError(f"User with email {user_data['email']} already exists")
+            user.user_email = user_data['email']
+        
+        self.session.add(user)
+        self.session.commit()
+        self.session.refresh(user)
+        
+        return user
+    
+    def delete_user(self, user_id: str) -> None:
+        """Delete user by string ID."""
+        try:
+            user_uuid = UUID(user_id)
+        except ValueError:
+            raise ValueError("Invalid user ID format")
+        
+        user = self.session.get(AppUser, user_uuid)
+        if not user:
+            raise ValueError("User not found")
+
+        # Удаляем все разрешения пользователя
+        permissions = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_uuid
+            )
+        ).all()
+
+        try:
+            for permission in permissions:
+                self.session.delete(permission)
+
+            self.session.delete(user)
+            self.session.commit()
+        except IntegrityError as exc:
+            self.session.rollback()
+            raise ValueError("Cannot delete user due to related records") from exc
     
     def get_user_response(self, user: AppUser) -> UserResponse:
         """Convert user to response model."""

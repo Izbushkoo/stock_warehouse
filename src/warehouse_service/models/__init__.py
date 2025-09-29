@@ -14,7 +14,7 @@ __all__ = [
     # Core warehouse models
     "Warehouse", "Zone", "BinLocation",
     "ItemGroup", "Item",
-    "AppUser", "WarehouseAccessGrant",
+    "AppUser", "Permission",
     "StockMovement", "StockBalance",
     "SalesOrder",
     "metadata",

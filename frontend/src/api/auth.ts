@@ -8,14 +8,22 @@ const client = axios.create({
   withCredentials: true
 });
 
+const userManagementClient = axios.create({
+  baseURL: `${API_BASE_URL}/api/users`,
+  withCredentials: true
+});
+
 // Добавляем токен к каждому запросу
-client.interceptors.request.use((config) => {
+const addAuthToken = (config: any) => {
   const token = localStorage.getItem('access_token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
   return config;
-});
+};
+
+client.interceptors.request.use(addAuthToken);
+userManagementClient.interceptors.request.use(addAuthToken);
 
 export interface RegisterPayload {
   email: string;
@@ -82,6 +90,61 @@ export const getUsers = async (): Promise<User[]> => {
     if (axios.isAxiosError(error)) {
       throw new Error(
         error.response?.data?.detail ?? 'Не удалось получить список пользователей.'
+      );
+    }
+    throw error;
+  }
+};
+
+export const updateUserStatus = async (userId: string, isActive: boolean): Promise<User> => {
+  try {
+    const response = await userManagementClient.patch(`/${userId}/status`, { is_active: isActive });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(
+        error.response?.data?.detail ?? 'Не удалось обновить статус пользователя.'
+      );
+    }
+    throw error;
+  }
+};
+
+export const updateUserPermissions = async (userId: string, permissions: Partial<UserPermissions>): Promise<User> => {
+  try {
+    const response = await userManagementClient.patch(`/${userId}/permissions`, { permissions });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(
+        error.response?.data?.detail ?? 'Не удалось обновить разрешения пользователя.'
+      );
+    }
+    throw error;
+  }
+};
+
+export const deleteUser = async (userId: string): Promise<void> => {
+  try {
+    await userManagementClient.delete(`/${userId}`);
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(
+        error.response?.data?.detail ?? 'Не удалось удалить пользователя.'
+      );
+    }
+    throw error;
+  }
+};
+
+export const updateUser = async (userId: string, userData: Partial<User>): Promise<User> => {
+  try {
+    const response = await userManagementClient.patch(`/${userId}`, userData);
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error)) {
+      throw new Error(
+        error.response?.data?.detail ?? 'Не удалось обновить данные пользователя.'
       );
     }
     throw error;

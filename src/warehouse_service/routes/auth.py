@@ -12,7 +12,7 @@ from warehouse_service.auth import (
 )
 from warehouse_service.auth.dependencies import get_session, get_auth_service
 from warehouse_service.models.unified import AppUser
-from warehouse_service.rbac.unified import RBACService
+from warehouse_service.auth.permissions_v2 import PermissionManager
 
 auth_router = APIRouter(prefix="/auth", tags=["authentication"])
 
@@ -103,8 +103,8 @@ async def get_user_permissions(
     session: Session = Depends(get_session)
 ):
     """Get current user's permissions."""
-    rbac = RBACService(session)
-    permissions = rbac.get_user_permissions_summary(current_user.app_user_id)
+    pm = PermissionManager(session)
+    permissions = pm.get_user_warehouse_permissions(current_user.app_user_id)
     
     return {
         "user_id": str(current_user.app_user_id),
@@ -137,6 +137,9 @@ async def list_users(
     
     users = auth_service.list_users()
     return [auth_service.get_user_response(user) for user in users]
+
+
+
 
 
 @auth_router.post("/logout")

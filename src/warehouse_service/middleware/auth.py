@@ -11,11 +11,12 @@ from uuid import UUID
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+from sqlmodel import select
 
 from warehouse_service.auth.auth_service import AuthService
 from warehouse_service.db import session_scope
 from warehouse_service.models.unified import AppUser
-from warehouse_service.rbac.unified import RBACService, WarehouseOperation, AccessContext
+from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType, PermissionLevel
 
 logger = logging.getLogger(__name__)
 
@@ -54,62 +55,66 @@ class AuthMiddleware(BaseHTTPMiddleware):
         {
             "pattern": r"^/api/v1/warehouses$",
             "methods": ["GET"],
-            "operation": None,  # Special case - handled in middleware
+            "permission_level": None,  # Special case - handled in middleware
         },
         {
             "pattern": r"^/api/v1/warehouses/([^/]+)/stock-balance$",
             "methods": ["GET"],
-            "operation": WarehouseOperation.VIEW_INVENTORY,
+            "permission_level": PermissionLevel.READ,
             "warehouse_param": 1,
         },
         {
             "pattern": r"^/api/v1/warehouses/([^/]+)/movements$",
             "methods": ["GET"],
-            "operation": WarehouseOperation.VIEW_INVENTORY,
+            "permission_level": PermissionLevel.READ,
             "warehouse_param": 1,
         },
         {
             "pattern": r"^/api/v1/stock-movements$",
             "methods": ["POST"],
-            "operation": WarehouseOperation.CREATE_MOVEMENT,
+            "permission_level": PermissionLevel.WRITE,
             "warehouse_from_body": "warehouse_id",
         },
         # Sales order endpoints
         {
             "pattern": r"^/api/v1/sales-orders$",
             "methods": ["POST"],
-            "operation": WarehouseOperation.CREATE_SALES_ORDER,
+            "permission_level": PermissionLevel.WRITE,
             "warehouse_from_body": "warehouse_id",
         },
         {
             "pattern": r"^/api/v1/sales-orders/([^/]+)/allocate$",
             "methods": ["POST"],
-            "operation": WarehouseOperation.CREATE_SALES_ORDER,
+            "permission_level": PermissionLevel.WRITE,
             "warehouse_from_order": True,
         },
         {
             "pattern": r"^/api/v1/sales-orders/([^/]+)/ship$",
             "methods": ["POST"],
-            "operation": WarehouseOperation.SHIP_SALES_ORDER,
+            "permission_level": PermissionLevel.WRITE,
             "warehouse_from_order": True,
         },
         # Analytics endpoints
         {
             "pattern": r"^/api/v1/warehouses/([^/]+)/analytics/",
             "methods": ["GET"],
-            "operation": WarehouseOperation.VIEW_ANALYTICS,
+            "permission_level": PermissionLevel.READ,
             "warehouse_param": 1,
         },
         {
             "pattern": r"^/api/v1/warehouses/([^/]+)/purchase-recommendations$",
             "methods": ["POST"],
-            "operation": WarehouseOperation.VIEW_ANALYTICS,
+            "permission_level": PermissionLevel.READ,
             "warehouse_param": 1,
         },
     ]
     
     async def dispatch(self, request: Request, call_next):
         """Process request through authentication and authorization middleware."""
+        
+        # Skip auth for OPTIONS requests (CORS preflight)
+        if request.method == "OPTIONS":
+            return await call_next(request)
         
         # Skip auth for public paths
         if self._is_public_path(request.url.path):
@@ -124,24 +129,27 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Add user permissions to request state for API usage
         if user:
             with session_scope() as session:
-                from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType
                 pm = PermissionManager(session)
-                is_system_admin = pm.is_system_admin(user.app_user_id)
-                user_permissions = pm.get_user_permissions(user.app_user_id)
                 
-                # Check if user has access to any warehouses
-                has_warehouse_access = any(
-                    perm["resource_type"] == ResourceType.WAREHOUSE.value 
-                    for perm in user_permissions
-                ) or is_system_admin
+                # Получаем системные разрешения
+                is_admin = pm.is_system_admin(user.app_user_id)
+                
+                # Получаем детальные разрешения на склады
+                warehouse_permissions = pm.get_user_warehouse_permissions(user.app_user_id)
+                
+                # Проверяем есть ли доступ к складам
+                has_warehouse_access = len(warehouse_permissions) > 0 or is_admin
                 
                 request.state.user_permissions = {
-                    "is_admin": is_system_admin,
-                    "can_manage_users": is_system_admin,
+                    "is_admin": is_admin,
+                    "can_manage_users": is_admin,
+                    "can_manage_warehouses": is_admin,
+                    "can_manage_products": is_admin,
+                    "can_manage_orders": is_admin,
+                    "can_view_reports": is_admin,
                     "has_warehouse_access": has_warehouse_access,
-                    "warehouses": {},  # TODO: implement warehouse-specific permissions
-                    "total_grants": len(user_permissions),
-                    "permissions": user_permissions
+                    "warehouses": warehouse_permissions,
+                    "total_grants": len(warehouse_permissions),
                 }
         else:
             request.state.user_permissions = {
@@ -185,9 +193,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
         for rule in self.PERMISSION_RULES:
             pattern_match = re.match(rule["pattern"], path)
             if pattern_match and method in rule["methods"]:
-                operation = rule.get("operation")
+                permission_level = rule.get("permission_level")
                 
-                if operation is None:
+                if permission_level is None:
                     # Special case handling (like listing warehouses)
                     continue
                 
@@ -202,13 +210,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 
                 # Check permission
                 with session_scope() as session:
-                    rbac = RBACService(session)
-                    context = AccessContext(warehouse_id=warehouse_id)
+                    pm = PermissionManager(session)
                     
-                    if not rbac.check_permission(user.app_user_id, operation, context):
+                    if not pm.has_warehouse_permission(user.app_user_id, warehouse_id, permission_level):
                         return JSONResponse(
                             status_code=403,
-                            content={"detail": f"Insufficient permissions for {operation.value}"}
+                            content={"detail": f"Insufficient permissions for warehouse {warehouse_id}"}
                         )
                 
                 # Permission granted, continue

@@ -1,10 +1,10 @@
-"""New flexible permission system for all resource types."""
+"""Unified flexible permission system for warehouse operations."""
 
 from __future__ import annotations
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Set
 from uuid import UUID
 
 from sqlmodel import Session, select
@@ -14,23 +14,21 @@ from warehouse_service.models.unified import AppUser, Permission, ItemGroup, War
 
 class ResourceType(str, Enum):
     """Available resource types in the system."""
-    ITEM_GROUP = "item_group"
-    WAREHOUSE = "warehouse"
-    AUDIT = "audit"
-    MARKETPLACE_ACCOUNTS = "marketplace_accounts"
-    SYSTEM = "system"
+    ITEM_GROUP = "item_group"    # Каталог товаров
+    WAREHOUSE = "warehouse"      # Склад
+    SYSTEM = "system"           # Системные разрешения
 
 
 class PermissionLevel(str, Enum):
     """Permission levels from lowest to highest."""
-    READ = "read"          # Can view resource
-    WRITE = "write"        # Can modify resource
-    ADMIN = "admin"        # Can manage resource + grant permissions
-    OWNER = "owner"        # Full control + can transfer ownership
+    READ = "read"          # Просмотр ресурса
+    WRITE = "write"        # Изменение ресурса (добавление/списание товаров)
+    ADMIN = "admin"        # Управление ресурсом + выдача разрешений
+    OWNER = "owner"        # Полный контроль + передача владения
 
 
 class PermissionManager:
-    """Centralized permission management."""
+    """Centralized permission management with catalog-warehouse hierarchy."""
     
     def __init__(self, session: Session):
         self.session = session
@@ -267,7 +265,29 @@ class PermissionManager:
                 query = query.where(Warehouse.item_group_id == item_group_id)
             return list(self.session.exec(query).all())
         
-        # Get warehouses where user has direct permissions
+        accessible_warehouse_ids = self.get_accessible_warehouse_ids(user_id, item_group_id)
+        
+        if not accessible_warehouse_ids:
+            return []
+        
+        query = select(Warehouse).where(Warehouse.warehouse_id.in_(accessible_warehouse_ids))
+        if item_group_id:
+            query = query.where(Warehouse.item_group_id == item_group_id)
+            
+        return list(self.session.exec(query).all())
+    
+    def get_accessible_warehouse_ids(self, user_id: UUID, item_group_id: Optional[UUID] = None) -> Set[UUID]:
+        """Get set of warehouse IDs user has access to (READ or higher)."""
+        
+        if self.is_system_admin(user_id):
+            query = select(Warehouse.warehouse_id)
+            if item_group_id:
+                query = query.where(Warehouse.item_group_id == item_group_id)
+            return set(self.session.exec(query).all())
+        
+        accessible_ids = set()
+        
+        # Get warehouses from direct warehouse permissions
         warehouse_permissions = self.session.exec(
             select(Permission).where(
                 Permission.app_user_id == user_id,
@@ -276,23 +296,216 @@ class PermissionManager:
             )
         ).all()
         
-        warehouse_ids = [perm.resource_id for perm in warehouse_permissions 
-                        if not perm.expires_at or perm.expires_at > datetime.utcnow()]
+        for perm in warehouse_permissions:
+            if not perm.expires_at or perm.expires_at > datetime.utcnow():
+                accessible_ids.add(perm.resource_id)
         
-        # Also get warehouses from item groups user has access to
-        if item_group_id:
-            if self.has_permission(user_id, ResourceType.ITEM_GROUP, item_group_id, PermissionLevel.READ):
-                item_group_warehouses = self.session.exec(
-                    select(Warehouse).where(Warehouse.item_group_id == item_group_id)
+        # Get warehouses from item group permissions
+        item_group_permissions = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_id,
+                Permission.resource_type == ResourceType.ITEM_GROUP.value,
+                Permission.is_active.is_(True)
+            )
+        ).all()
+        
+        for perm in item_group_permissions:
+            if not perm.expires_at or perm.expires_at > datetime.utcnow():
+                # Get all warehouses in this item group
+                warehouses = self.session.exec(
+                    select(Warehouse.warehouse_id).where(Warehouse.item_group_id == perm.resource_id)
                 ).all()
-                warehouse_ids.extend([w.warehouse_id for w in item_group_warehouses])
+                accessible_ids.update(warehouses)
         
-        if not warehouse_ids:
-            return []
+        # Filter by item_group_id if specified
+        if item_group_id and accessible_ids:
+            warehouses_in_group = set(self.session.exec(
+                select(Warehouse.warehouse_id).where(
+                    Warehouse.item_group_id == item_group_id,
+                    Warehouse.warehouse_id.in_(accessible_ids)
+                )
+            ).all())
+            accessible_ids = accessible_ids.intersection(warehouses_in_group)
         
-        return list(self.session.exec(
-            select(Warehouse).where(Warehouse.warehouse_id.in_(warehouse_ids))
-        ).all())
+        return accessible_ids
+    
+    def get_writable_warehouse_ids(self, user_id: UUID, item_group_id: Optional[UUID] = None) -> Set[UUID]:
+        """Get set of warehouse IDs user can write to (WRITE or higher)."""
+        
+        if self.is_system_admin(user_id):
+            query = select(Warehouse.warehouse_id)
+            if item_group_id:
+                query = query.where(Warehouse.item_group_id == item_group_id)
+            return set(self.session.exec(query).all())
+        
+        writable_ids = set()
+        
+        # Get warehouses from direct warehouse permissions (WRITE+)
+        warehouse_permissions = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_id,
+                Permission.resource_type == ResourceType.WAREHOUSE.value,
+                Permission.permission_level.in_([
+                    PermissionLevel.WRITE.value,
+                    PermissionLevel.ADMIN.value,
+                    PermissionLevel.OWNER.value
+                ]),
+                Permission.is_active.is_(True)
+            )
+        ).all()
+        
+        for perm in warehouse_permissions:
+            if not perm.expires_at or perm.expires_at > datetime.utcnow():
+                writable_ids.add(perm.resource_id)
+        
+        # Get warehouses from item group permissions (WRITE+)
+        item_group_permissions = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_id,
+                Permission.resource_type == ResourceType.ITEM_GROUP.value,
+                Permission.permission_level.in_([
+                    PermissionLevel.WRITE.value,
+                    PermissionLevel.ADMIN.value,
+                    PermissionLevel.OWNER.value
+                ]),
+                Permission.is_active.is_(True)
+            )
+        ).all()
+        
+        for perm in item_group_permissions:
+            if not perm.expires_at or perm.expires_at > datetime.utcnow():
+                # Get all warehouses in this item group
+                warehouses = self.session.exec(
+                    select(Warehouse.warehouse_id).where(Warehouse.item_group_id == perm.resource_id)
+                ).all()
+                writable_ids.update(warehouses)
+        
+        # Filter by item_group_id if specified
+        if item_group_id and writable_ids:
+            warehouses_in_group = set(self.session.exec(
+                select(Warehouse.warehouse_id).where(
+                    Warehouse.item_group_id == item_group_id,
+                    Warehouse.warehouse_id.in_(writable_ids)
+                )
+            ).all())
+            writable_ids = writable_ids.intersection(warehouses_in_group)
+        
+        return writable_ids
+    
+    def can_read_warehouse(self, user_id: UUID, warehouse_id: UUID) -> bool:
+        """Check if user can read warehouse data (view inventory)."""
+        return self.has_warehouse_permission(user_id, warehouse_id, PermissionLevel.READ)
+    
+    def can_write_warehouse(self, user_id: UUID, warehouse_id: UUID) -> bool:
+        """Check if user can write to warehouse (add/remove inventory)."""
+        return self.has_warehouse_permission(user_id, warehouse_id, PermissionLevel.WRITE)
+    
+    def can_admin_warehouse(self, user_id: UUID, warehouse_id: UUID) -> bool:
+        """Check if user can admin warehouse (manage settings, permissions)."""
+        return self.has_warehouse_permission(user_id, warehouse_id, PermissionLevel.ADMIN)
+    
+    def has_warehouse_permission(self, user_id: UUID, warehouse_id: UUID, required_level: PermissionLevel) -> bool:
+        """Check if user has required permission level for warehouse (with item group inheritance)."""
+        
+        if self.is_system_admin(user_id):
+            return True
+        
+        # Check direct warehouse permission
+        if self.has_permission(user_id, ResourceType.WAREHOUSE, warehouse_id, required_level):
+            return True
+        
+        # Check inherited permission from item group
+        warehouse = self.session.get(Warehouse, warehouse_id)
+        if warehouse and warehouse.item_group_id:
+            return self.has_permission(user_id, ResourceType.ITEM_GROUP, warehouse.item_group_id, required_level)
+        
+        return False
+    
+    def get_user_warehouse_permissions(self, user_id: UUID) -> Dict[str, Dict[str, Any]]:
+        """Get detailed warehouse permissions for user with inheritance info."""
+        
+        if self.is_system_admin(user_id):
+            # System admin has access to all warehouses
+            all_warehouses = self.session.exec(select(Warehouse)).all()
+            result = {}
+            for warehouse in all_warehouses:
+                result[str(warehouse.warehouse_id)] = {
+                    "warehouse_id": str(warehouse.warehouse_id),
+                    "warehouse_name": warehouse.warehouse_name,
+                    "item_group_id": str(warehouse.item_group_id),
+                    "permissions": {
+                        "read": True,
+                        "write": True,
+                        "admin": True
+                    },
+                    "source": "system_admin"
+                }
+            return result
+        
+        result = {}
+        
+        # Get all user permissions
+        permissions = self.session.exec(
+            select(Permission).where(
+                Permission.app_user_id == user_id,
+                Permission.is_active.is_(True)
+            )
+        ).all()
+        
+        # Process direct warehouse permissions
+        for perm in permissions:
+            if (perm.resource_type == ResourceType.WAREHOUSE.value and 
+                (not perm.expires_at or perm.expires_at > datetime.utcnow())):
+                
+                warehouse = self.session.get(Warehouse, perm.resource_id)
+                if warehouse:
+                    warehouse_id = str(warehouse.warehouse_id)
+                    user_level = PermissionLevel(perm.permission_level)
+                    
+                    result[warehouse_id] = {
+                        "warehouse_id": warehouse_id,
+                        "warehouse_name": warehouse.warehouse_name,
+                        "item_group_id": str(warehouse.item_group_id),
+                        "permissions": {
+                            "read": self._permission_hierarchy_check(user_level, PermissionLevel.READ),
+                            "write": self._permission_hierarchy_check(user_level, PermissionLevel.WRITE),
+                            "admin": self._permission_hierarchy_check(user_level, PermissionLevel.ADMIN)
+                        },
+                        "source": "direct_warehouse",
+                        "permission_level": perm.permission_level
+                    }
+        
+        # Process item group permissions (inherited by warehouses)
+        for perm in permissions:
+            if (perm.resource_type == ResourceType.ITEM_GROUP.value and 
+                (not perm.expires_at or perm.expires_at > datetime.utcnow())):
+                
+                # Get all warehouses in this item group
+                warehouses = self.session.exec(
+                    select(Warehouse).where(Warehouse.item_group_id == perm.resource_id)
+                ).all()
+                
+                user_level = PermissionLevel(perm.permission_level)
+                
+                for warehouse in warehouses:
+                    warehouse_id = str(warehouse.warehouse_id)
+                    
+                    # Only add if not already present with direct permission
+                    if warehouse_id not in result:
+                        result[warehouse_id] = {
+                            "warehouse_id": warehouse_id,
+                            "warehouse_name": warehouse.warehouse_name,
+                            "item_group_id": str(warehouse.item_group_id),
+                            "permissions": {
+                                "read": self._permission_hierarchy_check(user_level, PermissionLevel.READ),
+                                "write": self._permission_hierarchy_check(user_level, PermissionLevel.WRITE),
+                                "admin": self._permission_hierarchy_check(user_level, PermissionLevel.ADMIN)
+                            },
+                            "source": "inherited_from_item_group",
+                            "permission_level": perm.permission_level
+                        }
+        
+        return result
     
     def _permission_hierarchy_check(self, user_level: PermissionLevel, required_level: PermissionLevel) -> bool:
         """Check if user permission level satisfies required level."""
@@ -343,12 +556,27 @@ def require_warehouse_permission(
     warehouse_id: UUID, 
     level: PermissionLevel = PermissionLevel.READ
 ) -> None:
-    """Raise exception if user doesn't have warehouse permission."""
+    """Raise exception if user doesn't have warehouse permission (with item group inheritance)."""
     from fastapi import HTTPException, status
     
     pm = PermissionManager(session)
-    if not pm.has_permission(user.app_user_id, ResourceType.WAREHOUSE, warehouse_id, level):
+    if not pm.has_warehouse_permission(user.app_user_id, warehouse_id, level):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=f"Insufficient permissions for warehouse {warehouse_id}"
         )
+
+
+def require_warehouse_read(user: AppUser, session: Session, warehouse_id: UUID) -> None:
+    """Raise exception if user can't read warehouse."""
+    require_warehouse_permission(user, session, warehouse_id, PermissionLevel.READ)
+
+
+def require_warehouse_write(user: AppUser, session: Session, warehouse_id: UUID) -> None:
+    """Raise exception if user can't write to warehouse."""
+    require_warehouse_permission(user, session, warehouse_id, PermissionLevel.WRITE)
+
+
+def require_warehouse_admin(user: AppUser, session: Session, warehouse_id: UUID) -> None:
+    """Raise exception if user can't admin warehouse."""
+    require_warehouse_permission(user, session, warehouse_id, PermissionLevel.ADMIN)

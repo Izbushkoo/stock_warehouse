@@ -213,24 +213,7 @@ class Permission(SQLModel, table=True):
     is_active: bool = Field(default=True)
 
 
-# Для обратной совместимости - будем постепенно мигрировать
-class WarehouseAccessGrant(SQLModel, table=True):
-    """Legacy granular access control - deprecated, use Permission instead."""
-    
-    __tablename__ = "warehouse_access_grant"
-    __table_args__ = (
-        CheckConstraint("scope_type IN ('warehouse', 'zone', 'bin_location', 'item_group')", name='ck_scope_type'),
-        UniqueConstraint('app_user_id', 'warehouse_id', 'scope_type', 'scope_entity_identifier', name='uq_warehouse_access_grant'),
-    )
-    
-    warehouse_access_grant_id: UUID = uuid_field()
-    app_user_id: UUID = Field(foreign_key="app_user.app_user_id")
-    warehouse_id: UUID = Field(foreign_key="warehouse.warehouse_id")
-    scope_type: str  # warehouse, zone, bin_location, item_group
-    scope_entity_identifier: Optional[UUID] = None
-    can_read: bool = Field(default=True)
-    can_write: bool = Field(default=False)
-    can_approve: bool = Field(default=False)
+# WarehouseAccessGrant удален - используем только Permission систему
     
 
 # 4. Stock Movement System (Core)
@@ -604,7 +587,7 @@ class DomainEvent(SQLModel, table=True):
 __all__ = [
     "Warehouse", "Zone", "BinLocation",
     "ItemGroup", "Item", "Lot", "SerialNumber",
-    "AppUser", "WarehouseAccessGrant",
+    "AppUser", "Permission",
     "StockMovement", "StockBalance",
     "SalesOrder", "SalesOrderLine", "InventoryReservation",
     "ReturnOrder", "ReturnOrderLine",

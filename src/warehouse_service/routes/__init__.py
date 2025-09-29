@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from .admin_api import admin_api_router as admin_router
+# admin_api удален - используем новую систему разрешений
 from .auth import auth_router
 from .permissions import router as permissions_router
 from .unified import router as unified_router
@@ -26,4 +26,4 @@ async def status() -> dict[str, str]:
     return {"status": "ok"}
 
 
-__all__ = ["api_router", "admin_router"]
+__all__ = ["api_router"]

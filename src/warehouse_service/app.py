@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from warehouse_service import __version__
 from warehouse_service.config import get_settings
 from warehouse_service.logging import configure_logging
-from warehouse_service.routes import admin_router, api_router
+from warehouse_service.routes import api_router
 from warehouse_service.routes.user_management import router as user_management_router
 from warehouse_service.middleware.auth import AuthMiddleware
 
@@ -53,8 +53,13 @@ def create_app() -> FastAPI:
     app.add_middleware(AuthMiddleware)
 
     app.include_router(api_router)
-    app.include_router(admin_router)
     app.include_router(user_management_router)
+    
+    # Add new permission and catalog management routes
+    from warehouse_service.routes.permissions import router as permissions_router
+    from warehouse_service.routes.catalog_management import router as catalog_router
+    app.include_router(permissions_router)
+    app.include_router(catalog_router)
 
     @app.get("/health", tags=["monitoring"], summary="Return service health status")
     async def healthcheck() -> dict[str, str]:

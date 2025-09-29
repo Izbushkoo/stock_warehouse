@@ -75,9 +75,9 @@ async def list_warehouses(
     session: Session = Depends(get_session)
 ):
     """List all warehouses accessible to user."""
-    from warehouse_service.rbac.unified import RBACService
-    rbac = RBACService(session)
-    accessible_warehouse_ids = rbac.get_accessible_warehouses(current_user.app_user_id)
+    from warehouse_service.auth.permissions_v2 import PermissionManager
+    pm = PermissionManager(session)
+    accessible_warehouse_ids = pm.get_accessible_warehouse_ids(current_user.app_user_id)
     
     warehouses = []
     for warehouse_id in accessible_warehouse_ids:
@@ -381,8 +381,8 @@ async def get_user_permissions(
         # Would need to implement admin check here
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
     
-    from warehouse_service.rbac.unified import RBACService
-    rbac = RBACService(session)
-    permissions = rbac.get_user_permissions_summary(user_id)
+    from warehouse_service.auth.permissions_v2 import PermissionManager
+    pm = PermissionManager(session)
+    permissions = pm.get_user_warehouse_permissions(user_id)
     
     return {"permissions": permissions}

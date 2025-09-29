@@ -1,0 +1,20 @@
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.icon {
+  font-size: 36px;
+}
+
+.title {
+  font-weight: 700;
+  font-size: 20px;
+  color: #111827;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #64748b;
+}

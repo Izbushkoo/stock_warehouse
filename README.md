@@ -48,6 +48,13 @@ Additional helpers:
 - `make celery-sync` – sync configured periodic tasks into the SQLAlchemy-backed Celery beat tables.
 - `make check` – run Ruff linting followed by pytest.
 
+### Frontend development
+
+- Основной код React-приложения расположен в каталоге [`frontend/`](frontend/).
+- Для локальной разработки достаточно поднять весь стек через `make local-up` — будет запущен сервис `frontend` с Vite dev server на порту `5173`.
+- Переменная `VITE_API_BASE_URL` управляет тем, куда отправляются запросы с фронтенда. По умолчанию она указывает на локальный FastAPI (`http://localhost:8000`).
+- В production-профиле Docker Compose строит статический бандл и публикует его на порту `4173`. При необходимости можно переопределить `FRONTEND_PORT` или `FRONTEND_API_BASE_URL` в `.env`.
+
 ## Production-oriented commands
 
 ```bash
@@ -75,5 +82,6 @@ make prod-down
 - **Celery** worker and beat leveraging the PostgreSQL-backed `sqlalchemy-celery-beat` scheduler for the daily 09:00 (Europe/Minsk) health report.
 - **Redis** for background job brokering and cache-like features.
 - **Telegram** notifications for startup diagnostics and scheduled health summaries.
+- **React + Vite** фронтенд (каталог `frontend/`), который предоставляет клиентский интерфейс для авторизации и регистрации. Фронт запускается через отдельный контейнер `frontend` в docker-compose и использует REST API FastAPI.
 
 The `scripts/entrypoint.sh` script orchestrates migrations, system checks, and process manager selection so both compose profiles share the same runtime skeleton.

@@ -103,6 +103,22 @@ services:
       worker:
         condition: service_started
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: preview
+      args:
+        VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8000}
+        VITE_PREVIEW_PORT: ${VITE_PREVIEW_PORT:-4173}
+    environment:
+      PREVIEW_PORT: ${VITE_PREVIEW_PORT:-4173}
+    ports:
+      - "${FRONTEND_PORT:-4173}:${VITE_PREVIEW_PORT:-4173}"
+    depends_on:
+      app:
+        condition: service_started
+
 volumes:
   db_data:
   redis_data:

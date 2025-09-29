@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}{{ item_group.item_group_name }} - Каталог{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <!-- Header -->
+        <div class="mb-6">
+            <nav class="flex" aria-label="Breadcrumb">
+                <ol class="flex items-center space-x-4">
+                    <li>
+                        <div>
+                            <a href="/catalog" class="text-gray-400 hover:text-gray-500">
+                                <svg class="flex-shrink-0 h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"></path>
+                                </svg>
+                                <span class="sr-only">Каталог</span>
+                            </a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            <a href="/catalog" class="ml-4 text-sm font-medium text-gray-500 hover:text-gray-700">Каталог</a>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="flex items-center">
+                            <svg class="flex-shrink-0 h-5 w-5 text-gray-300" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path>
+                            </svg>
+                            <span class="ml-4 text-sm font-medium text-gray-900">{{ item_group.item_group_name }}</span>
+                        </div>
+                    </li>
+                </ol>
+            </nav>
+            
+            <div class="mt-4">
+                <h1 class="text-3xl font-bold text-gray-900">{{ item_group.item_group_name }}</h1>
+                {% if item_group.item_group_description %}
+                <p class="mt-2 text-sm text-gray-600">{{ item_group.item_group_description }}</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Info about warehouses in this item group -->
+        {% if warehouses %}
+        <div class="mb-6 bg-white shadow rounded-lg p-4">
+            <div class="flex items-center space-x-4">
+                <span class="text-sm font-medium text-gray-700">Склады в этой группе:</span>
+                <div class="flex flex-wrap gap-2">
+                    {% for warehouse in warehouses %}
+                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                        {{ warehouse.warehouse_name }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Items Grid -->
+        {% if items %}
+        <div class="bg-white shadow overflow-hidden sm:rounded-md">
+            <ul class="divide-y divide-gray-200" id="items-list">
+                {% for item in items %}
+                <li class="item-row">
+                    <div class="px-4 py-4 sm:px-6">
+                        <div class="flex items-center justify-between">
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center">
+                                    <div class="flex-shrink-0">
+                                        <div class="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center">
+                                            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div class="ml-4 flex-1 min-w-0">
+                                        <div class="flex items-center">
+                                            <p class="text-sm font-medium text-gray-900 truncate">
+                                                {{ item.name }}
+                                            </p>
+                                            <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+                                                {{ item.sku }}
+                                            </span>
+                                        </div>
+                                        {% if item.description %}
+                                        <p class="mt-1 text-sm text-gray-500">
+                                            {{ item.description }}
+                                        </p>
+                                        {% endif %}
+                                        <div class="mt-2 flex items-center text-sm text-gray-500">
+                                            <svg class="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                                            </svg>
+                                            <span>{{ item.unit_of_measure }}</span>
+                                            {% if item.barcode %}
+                                            <span class="ml-4">Штрихкод: {{ item.barcode }}</span>
+                                            {% endif %}
+                                            {% if item.created_at %}
+                                            <span class="ml-4">Добавлен {{ item.created_at.strftime('%d.%m.%Y') }}</span>
+                                            {% endif %}
+                                        </div>
+                                        {% if item.is_lot_tracked or item.is_serial_tracked %}
+                                        <div class="mt-1 flex items-center space-x-2">
+                                            {% if item.is_lot_tracked %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                                                Партийный учет
+                                            </span>
+                                            {% endif %}
+                                            {% if item.is_serial_tracked %}
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800">
+                                                Серийный учет
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="ml-4 flex-shrink-0">
+                                <button type="button" class="bg-white rounded-md text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary-500">
+                                    <span class="sr-only">Подробнее</span>
+                                    <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">Нет товаров</h3>
+            <p class="mt-1 text-sm text-gray-500">В этом каталоге пока нет товаров.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+{% endblock %}

@@ -17,6 +17,7 @@ from warehouse_service.auth.dependencies import get_session
 from warehouse_service.models.unified import (
     AppUser,
     BinLocation,
+    Item,
     ItemGroup,
     Warehouse,
     WarehouseAccessGrant,
@@ -43,6 +44,7 @@ def get_current_user_from_request(request: Request) -> Optional[AppUser]:
 
 def ensure_manage_users_permission(session: Session, request: Request) -> AppUser:
     """Ensure the current user can manage other users."""
+    from warehouse_service.auth.permissions_v2 import require_system_admin
 
     current_user = get_current_user_from_request(request)
     if not current_user:
@@ -51,19 +53,7 @@ def ensure_manage_users_permission(session: Session, request: Request) -> AppUse
     if not current_user.is_active:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User account is disabled")
 
-    has_permission = session.exec(
-        select(WarehouseAccessGrant).where(
-            WarehouseAccessGrant.app_user_id == current_user.app_user_id,
-            WarehouseAccessGrant.can_approve.is_(True),
-        )
-    ).first()
-
-    if not has_permission:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to manage users",
-        )
-
+    require_system_admin(current_user, session)
     return current_user
 
 
@@ -130,25 +120,36 @@ def _resolve_entity_name(
     return str(identifier)
 
 
-@admin_router.get("/", response_class=HTMLResponse, summary="Admin Dashboard")
-def admin_dashboard(
+@admin_router.get("/", response_class=HTMLResponse, summary="Administration Panel")
+def administration_panel(
     request: Request,
     session: Session = Depends(get_session),
 ) -> HTMLResponse:
-    """Display administrative dashboard with quick statistics."""
+    """Display administration panel for system administrators."""
 
-    current_user = get_current_user_from_request(request)
+    current_user = ensure_manage_users_permission(session, request)
 
+    # Статистика системы
     user_count = len(session.exec(select(AppUser)).all())
     warehouse_count = len(session.exec(select(Warehouse)).all())
-    access_grant_count = len(session.exec(select(WarehouseAccessGrant)).all())
-
+    item_count = len(session.exec(select(Item).where(Item.item_status == "active")).all())
+    
+    # Последние пользователи
     recent_users = session.exec(
         select(AppUser).order_by(AppUser.created_at.desc()).limit(5)
     ).all()
+    
+    # Последние созданные товары
+    recent_items = session.exec(
+        select(Item, ItemGroup)
+        .join(ItemGroup, Item.item_group_id == ItemGroup.item_group_id)
+        .where(Item.item_status == "active")
+        .order_by(Item.created_at.desc())
+        .limit(5)
+    ).all()
 
     return templates.TemplateResponse(
-        "admin/dashboard.html",
+        "admin/administration.html",
         {
             "request": request,
             "user": current_user,
@@ -156,9 +157,10 @@ def admin_dashboard(
             "stats": {
                 "users": user_count,
                 "warehouses": warehouse_count,
-                "access_grants": access_grant_count,
+                "items": item_count,
             },
             "recent_users": recent_users,
+            "recent_items": recent_items,
         },
     )
 
@@ -294,7 +296,14 @@ async def delete_user(
     auth_service = AuthService(session)
 
     try:
-        auth_service.delete_user(user_id)
+        # Use cascade deactivation instead of hard delete
+        success = auth_service.deactivate_user_cascade(user_id)
+        if not success:
+            return redirect_with_message(
+                f"/admin/users/{user_id}",
+                "User not found",
+                "error",
+            )
     except ValueError as exc:
         return redirect_with_message(
             f"/admin/users/{user_id}",
@@ -302,7 +311,44 @@ async def delete_user(
             "error",
         )
 
-    return redirect_with_message("/admin/users", "User removed", "success")
+    return redirect_with_message("/admin/users", "User and all owned resources deactivated", "success")
+
+
+@admin_router.post("/users/{user_id}/deactivate-cascade", summary="Deactivate User and Owned Resources")
+async def deactivate_user_cascade(
+    request: Request,
+    user_id: UUID,
+    session: Session = Depends(get_session),
+):
+    """Deactivate user and cascade deactivate all their owned resources (warehouses, item groups, permissions)."""
+
+    current_user = ensure_manage_users_permission(session, request)
+
+    if current_user.app_user_id == user_id:
+        return redirect_with_message(
+            "/admin/users",
+            "You cannot deactivate your own account",
+            "error",
+        )
+
+    auth_service = AuthService(session)
+
+    try:
+        success = auth_service.deactivate_user_cascade(user_id)
+        if not success:
+            return redirect_with_message(
+                f"/admin/users/{user_id}",
+                "User not found",
+                "error",
+            )
+    except ValueError as exc:
+        return redirect_with_message(
+            f"/admin/users/{user_id}",
+            str(exc),
+            "error",
+        )
+
+    return redirect_with_message("/admin/users", "User and all owned resources deactivated", "success")
 
 
 @admin_router.get("/users/{user_id}", response_class=HTMLResponse, summary="User Detail")
@@ -612,6 +658,294 @@ def list_warehouses(
             "warehouses": warehouses,
         },
     )
+
+
+@admin_router.get("/inventories", response_class=HTMLResponse, summary="List Inventories")
+def list_inventories(
+    request: Request,
+    session: Session = Depends(get_session),
+) -> HTMLResponse:
+    """Display inventories management page."""
+
+    current_user = ensure_manage_users_permission(session, request)
+    
+    # Get all items with their item group information
+    items = session.exec(
+        select(Item, ItemGroup)
+        .join(ItemGroup, Item.item_group_id == ItemGroup.item_group_id)
+        .order_by(Item.item_name)
+    ).all()
+    
+    # Get item groups for the create form
+    item_groups = session.exec(select(ItemGroup).order_by(ItemGroup.item_group_name)).all()
+
+    item_rows = []
+    for item, item_group in items:
+        item_rows.append({
+            "id": item.item_id,
+            "name": item.item_name,
+            "sku": item.stock_keeping_unit,
+            "description": getattr(item, 'item_description', ''),
+            "item_group_name": item_group.item_group_name,
+            "unit_of_measure": item.unit_of_measure,
+            "status": item.item_status,
+            "created_at": item.created_at,
+            "is_active": item.item_status == "active"
+        })
+
+    return templates.TemplateResponse(
+        "admin/inventories/list.html",
+        {
+            "request": request,
+            "user": current_user,
+            "messages": build_messages(request),
+            "items": item_rows,
+            "item_groups": item_groups,
+        },
+    )
+
+
+@admin_router.post("/inventories/create", summary="Create Inventory Item")
+async def create_inventory_item(
+    request: Request,
+    item_name: str = Form(...),
+    item_sku: str = Form(...),
+    unit_of_measure: str = Form(default="pieces"),
+    item_group_id: UUID = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Create a new inventory item."""
+
+    current_user = ensure_manage_users_permission(session, request)
+
+    # Check if SKU already exists
+    existing_item = session.exec(
+        select(Item).where(Item.stock_keeping_unit == item_sku.strip())
+    ).first()
+    
+    if existing_item:
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Item with SKU '{item_sku}' already exists",
+            "error"
+        )
+
+    # Check if item group exists
+    item_group = session.get(ItemGroup, item_group_id)
+    if not item_group:
+        return redirect_with_message(
+            "/admin/inventories",
+            "Selected item group not found",
+            "error"
+        )
+
+    try:
+        new_item = Item(
+            item_name=item_name.strip(),
+            stock_keeping_unit=item_sku.strip(),
+            unit_of_measure=unit_of_measure.strip(),
+            item_group_id=item_group_id,
+            created_by=current_user.app_user_id
+        )
+        
+        session.add(new_item)
+        session.commit()
+        
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Inventory item '{item_name}' created successfully",
+            "success"
+        )
+        
+    except IntegrityError:
+        session.rollback()
+        return redirect_with_message(
+            "/admin/inventories",
+            "Failed to create inventory item - duplicate SKU or other constraint violation",
+            "error"
+        )
+    except Exception as exc:
+        session.rollback()
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Failed to create inventory item: {str(exc)}",
+            "error"
+        )
+
+
+@admin_router.post("/inventories/{item_id}/update", summary="Update Inventory Item")
+async def update_inventory_item(
+    request: Request,
+    item_id: UUID,
+    item_name: str = Form(...),
+    item_sku: str = Form(...),
+    unit_of_measure: str = Form(default="pieces"),
+    item_group_id: UUID = Form(...),
+    session: Session = Depends(get_session),
+):
+    """Update an existing inventory item."""
+
+    current_user = ensure_manage_users_permission(session, request)
+
+    item = session.get(Item, item_id)
+    if not item:
+        return redirect_with_message(
+            "/admin/inventories",
+            "Inventory item not found",
+            "error"
+        )
+
+    # Check if SKU already exists for another item
+    existing_item = session.exec(
+        select(Item).where(
+            Item.stock_keeping_unit == item_sku.strip(),
+            Item.item_id != item_id
+        )
+    ).first()
+    
+    if existing_item:
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Another item with SKU '{item_sku}' already exists",
+            "error"
+        )
+
+    # Check if item group exists
+    item_group = session.get(ItemGroup, item_group_id)
+    if not item_group:
+        return redirect_with_message(
+            "/admin/inventories",
+            "Selected item group not found",
+            "error"
+        )
+
+    try:
+        item.item_name = item_name.strip()
+        item.stock_keeping_unit = item_sku.strip()
+        item.unit_of_measure = unit_of_measure.strip()
+        item.item_group_id = item_group_id
+        
+        session.add(item)
+        session.commit()
+        
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Inventory item '{item_name}' updated successfully",
+            "success"
+        )
+        
+    except IntegrityError:
+        session.rollback()
+        return redirect_with_message(
+            "/admin/inventories",
+            "Failed to update inventory item - duplicate SKU or other constraint violation",
+            "error"
+        )
+    except Exception as exc:
+        session.rollback()
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Failed to update inventory item: {str(exc)}",
+            "error"
+        )
+
+
+@admin_router.post("/inventories/{item_id}/delete", summary="Delete Inventory Item")
+async def delete_inventory_item(
+    request: Request,
+    item_id: UUID,
+    session: Session = Depends(get_session),
+):
+    """Delete an inventory item."""
+
+    current_user = ensure_manage_users_permission(session, request)
+
+    item = session.get(Item, item_id)
+    if not item:
+        return redirect_with_message(
+            "/admin/inventories",
+            "Inventory item not found",
+            "error"
+        )
+
+    try:
+        # Instead of hard delete, mark as archived
+        item_name = item.item_name
+        item.item_status = "archived"
+        
+        session.add(item)
+        session.commit()
+        
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Inventory item '{item_name}' archived successfully",
+            "success"
+        )
+        
+    except Exception as exc:
+        session.rollback()
+        return redirect_with_message(
+            "/admin/inventories",
+            f"Failed to archive inventory item: {str(exc)}",
+            "error"
+        )
+
+
+@admin_router.post("/item-groups/create", summary="Create Item Group")
+async def create_item_group(
+    request: Request,
+    item_group_name: str = Form(...),
+    item_group_code: str = Form(...),
+    item_group_description: str = Form(default=""),
+    session: Session = Depends(get_session),
+):
+    """Create a new item group (inventory)."""
+
+    current_user = ensure_manage_users_permission(session, request)
+
+    # Check if code already exists
+    existing_group = session.exec(
+        select(ItemGroup).where(ItemGroup.item_group_code == item_group_code.strip())
+    ).first()
+    
+    if existing_group:
+        return redirect_with_message(
+            "/admin",
+            f"Item group with code '{item_group_code}' already exists",
+            "error"
+        )
+
+    try:
+        new_group = ItemGroup(
+            item_group_name=item_group_name.strip(),
+            item_group_code=item_group_code.strip(),
+            item_group_description=item_group_description.strip() if item_group_description else None,
+            created_by=current_user.app_user_id
+        )
+        
+        session.add(new_group)
+        session.commit()
+        
+        return redirect_with_message(
+            "/admin",
+            f"Item group '{item_group_name}' created successfully",
+            "success"
+        )
+        
+    except IntegrityError:
+        session.rollback()
+        return redirect_with_message(
+            "/admin",
+            "Failed to create item group - duplicate code or other constraint violation",
+            "error"
+        )
+    except Exception as exc:
+        session.rollback()
+        return redirect_with_message(
+            "/admin",
+            f"Failed to create item group: {str(exc)}",
+            "error"
+        )
 
 
 __all__ = ["admin_router"]

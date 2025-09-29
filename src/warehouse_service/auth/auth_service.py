@@ -11,6 +11,9 @@ import jwt
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
+from warehouse_service.auth.password import hash_password, verify_password
+from warehouse_service.auth.user_lifecycle import UserLifecycleService
+
 from warehouse_service.auth.models import (
     CreateUserRequest,
     LoginRequest,
@@ -48,7 +51,7 @@ class AuthService:
         if not user:
             return None
         
-        if not self._verify_password(password, user.password_hash):
+        if not verify_password(password, user.password_hash):
             return None
         
         # Update last login
@@ -124,7 +127,7 @@ class AuthService:
             raise ValueError(f"User with email {request.email} already exists")
         
         # Hash password
-        password_hash = self._hash_password(request.password)
+        password_hash = hash_password(request.password)
         
         # Create user
         user = AppUser(
@@ -176,7 +179,7 @@ class AuthService:
         user.is_active = is_active
 
         if password:
-            user.password_hash = self._hash_password(password)
+            user.password_hash = hash_password(password)
 
         self.session.add(user)
         self.session.commit()
@@ -213,14 +216,34 @@ class AuthService:
         if not user:
             return False
         
-        if not self._verify_password(current_password, user.password_hash):
+        if not verify_password(current_password, user.password_hash):
             return False
         
-        user.password_hash = self._hash_password(new_password)
+        user.password_hash = hash_password(new_password)
         self.session.add(user)
         self.session.commit()
         
         return True
+    
+    def deactivate_user_cascade(self, user_id: UUID, deactivated_by: UUID, reason: Optional[str] = None) -> bool:
+        """Deactivate user and soft delete all their created resources."""
+        lifecycle_service = UserLifecycleService(self.session)
+        return lifecycle_service.deactivate_user(user_id, deactivated_by, reason)
+    
+    def reactivate_user_cascade(self, user_id: UUID, reactivated_by: UUID) -> bool:
+        """Reactivate user and restore all their soft deleted resources."""
+        lifecycle_service = UserLifecycleService(self.session)
+        return lifecycle_service.reactivate_user(user_id, reactivated_by)
+    
+    def get_users_for_permanent_deletion(self, days_threshold: int = 30) -> List[AppUser]:
+        """Get users eligible for permanent deletion after being deactivated for specified days."""
+        lifecycle_service = UserLifecycleService(self.session)
+        return lifecycle_service.get_users_for_permanent_deletion(days_threshold)
+    
+    def permanently_delete_user(self, user_id: UUID) -> bool:
+        """Permanently delete user and all their soft deleted resources."""
+        lifecycle_service = UserLifecycleService(self.session)
+        return lifecycle_service.permanently_delete_user(user_id)
     
     def get_user_response(self, user: AppUser) -> UserResponse:
         """Convert user to response model."""
@@ -233,11 +256,3 @@ class AuthService:
             created_at=user.created_at
         )
     
-    def _hash_password(self, password: str) -> str:
-        """Hash password using bcrypt."""
-        salt = bcrypt.gensalt()
-        return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
-    
-    def _verify_password(self, password: str, hashed: str) -> bool:
-        """Verify password against hash."""
-        return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))

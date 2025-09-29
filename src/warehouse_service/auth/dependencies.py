@@ -70,3 +70,14 @@ def get_current_user_optional(
 def require_auth(user: AppUser = Depends(get_current_user)) -> AppUser:
     """Require authentication (alias for get_current_user)."""
     return user
+
+
+def require_system_admin(
+    user: AppUser = Depends(get_current_user),
+    session: Session = Depends(get_session)
+) -> AppUser:
+    """Require system admin privileges."""
+    from warehouse_service.auth.permissions_v2 import require_system_admin as _require_system_admin
+    
+    _require_system_admin(user, session)
+    return user

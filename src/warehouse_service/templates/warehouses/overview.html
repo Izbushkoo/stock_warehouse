@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Склады{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0">
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-900">Мои склады</h1>
+            <p class="mt-2 text-sm text-gray-600">Склады, к которым у вас есть доступ</p>
+        </div>
+
+        {% if warehouse_stats %}
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for stat in warehouse_stats %}
+            <div class="bg-white overflow-hidden shadow rounded-lg hover:shadow-md transition-shadow">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-medium text-gray-900">{{ stat.warehouse.warehouse_name }}</h3>
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                            {{ stat.item_group.item_group_name if stat.item_group else 'Без группы' }}
+                        </span>
+                    </div>
+                    
+                    {% if stat.warehouse.warehouse_description %}
+                    <p class="text-sm text-gray-600 mb-4">{{ stat.warehouse.warehouse_description }}</p>
+                    {% endif %}
+                    
+                    <div class="flex items-center justify-between text-sm text-gray-500 mb-4">
+                        <span>Товаров: {{ stat.item_count }}</span>
+                        <span>Код: {{ stat.warehouse.warehouse_code }}</span>
+                    </div>
+                    
+                    <div class="flex justify-between items-center">
+                        <a href="/warehouses/{{ stat.warehouse.warehouse_id }}" 
+                           class="text-blue-600 hover:text-blue-500 text-sm font-medium">
+                            Открыть склад →
+                        </a>
+                        
+                        <!-- Permission indicators -->
+                        <div class="flex space-x-1">
+                            {% for perm in stat.user_permissions %}
+                                {% if perm.resource_type == 'warehouse' and perm.resource_id == stat.warehouse.warehouse_id|string %}
+                                    {% if perm.permission_level == 'read' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800" title="Чтение">
+                                        👁️
+                                    </span>
+                                    {% elif perm.permission_level == 'write' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800" title="Запись">
+                                        ✏️
+                                    </span>
+                                    {% elif perm.permission_level == 'admin' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800" title="Администратор">
+                                        🔧
+                                    </span>
+                                    {% elif perm.permission_level == 'owner' %}
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800" title="Владелец">
+                                        👑
+                                    </span>
+                                    {% endif %}
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m0 0h2M7 7h10M7 11h6m-6 4h6"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">Нет доступных складов</h3>
+            <p class="mt-1 text-sm text-gray-500">
+                У вас пока нет доступа к складам. Обратитесь к администратору для получения разрешений.
+            </p>
+            {% if is_system_admin %}
+            <div class="mt-6">
+                <a href="/admin" 
+                   class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700">
+                    Перейти к администрированию
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

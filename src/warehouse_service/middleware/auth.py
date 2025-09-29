@@ -47,7 +47,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/change-password",
         "/api/auth/logout",
         "/auth/logout",
-        "/admin"
+        "/admin",
+        "/catalog"
     }
     
     # Permission mapping for API endpoints
@@ -122,6 +123,38 @@ class AuthMiddleware(BaseHTTPMiddleware):
         
         # Add user to request state
         request.state.user = user
+        
+        # Add user permissions to request state for templates
+        if user:
+            with session_scope() as session:
+                from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType
+                pm = PermissionManager(session)
+                is_system_admin = pm.is_system_admin(user.app_user_id)
+                user_permissions = pm.get_user_permissions(user.app_user_id)
+                
+                # Check if user has access to any warehouses
+                has_warehouse_access = any(
+                    perm["resource_type"] == ResourceType.WAREHOUSE.value 
+                    for perm in user_permissions
+                ) or is_system_admin
+                
+                request.state.user_permissions = {
+                    "is_admin": is_system_admin,
+                    "can_manage_users": is_system_admin,
+                    "has_warehouse_access": has_warehouse_access,
+                    "warehouses": {},  # TODO: implement warehouse-specific permissions
+                    "total_grants": len(user_permissions),
+                    "permissions": user_permissions
+                }
+        else:
+            request.state.user_permissions = {
+                "is_admin": False,
+                "can_manage_users": False,
+                "has_warehouse_access": False,
+                "warehouses": {},
+                "total_grants": 0,
+                "permissions": []
+            }
         
         # Check if path requires authentication
         if self._requires_auth(request.url.path):
@@ -251,81 +284,8 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/admin"):
             return True
         
-        # Auth-only paths
-        if path in self.AUTH_ONLY_PATHS:
-            return True
-        
-        return False
-    
-    async def _get_user_from_request(self, request: Request) -> Optional[AppUser]:
-        """Extract and validate user from request."""
-        try:
-            # Try to get token from Authorization header
-            auth_header = request.headers.get("Authorization")
-            token = None
-            
-            if auth_header and auth_header.startswith("Bearer "):
-                token = auth_header.replace("Bearer ", "")
-            
-            # Try to get token from cookie (for web interface)
-            if not token:
-                token = request.cookies.get("access_token")
-            
-            if not token:
-                return None
-            
-            # Validate token and get user
-            with session_scope() as session:
-                auth_service = AuthService(session)
-                user = auth_service.get_user_by_token(token)
-                return user
-                
-        except Exception as e:
-            logger.warning(f"Error getting user from request: {e}")
-            return None
-    
-    async def _handle_unauthenticated(self, request: Request) -> Response:
-        """Handle unauthenticated requests."""
-        # For API requests, return JSON error
-        if request.url.path.startswith("/api/"):
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "Authentication required"}
-            )
-        
-        # For web requests, redirect to login
-        return RedirectResponse(url="/", status_code=302)
-    
-    async def _handle_inactive_user(self, request: Request) -> Response:
-        """Handle requests from inactive users."""
-        # For API requests, return JSON error
-        if request.url.path.startswith("/api/"):
-            return JSONResponse(
-                status_code=401,
-                content={"detail": "User account is disabled"}
-            )
-        
-        # For web requests, redirect to login with message
-        return RedirectResponse(url="/?error=account_disabled", status_code=302)    
-
-    def _is_public_path(self, path: str) -> bool:
-        """Check if path is public (no auth required)."""
-        # Exact matches
-        if path in self.PUBLIC_PATHS:
-            return True
-        
-        # Prefix matches for static files, etc.
-        public_prefixes = ["/static/", "/favicon"]
-        return any(path.startswith(prefix) for prefix in public_prefixes)
-    
-    def _requires_auth(self, path: str) -> bool:
-        """Check if path requires authentication."""
-        # API paths require auth (except public ones already filtered)
-        if path.startswith("/api/"):
-            return True
-        
-        # Admin paths require auth
-        if path.startswith("/admin"):
+        # Catalog paths require auth
+        if path.startswith("/catalog"):
             return True
         
         # Auth-only paths
@@ -355,7 +315,19 @@ class AuthMiddleware(BaseHTTPMiddleware):
             with session_scope() as session:
                 auth_service = AuthService(session)
                 user = auth_service.get_user_by_token(token)
-                return user
+                if user:
+                    # Create a detached copy of the user to avoid session issues
+                    detached_user = AppUser(
+                        app_user_id=user.app_user_id,
+                        user_email=user.user_email,
+                        user_display_name=user.user_display_name,
+                        password_hash=user.password_hash,
+                        is_active=user.is_active,
+                        last_login_at=user.last_login_at,
+                        created_at=user.created_at
+                    )
+                    return detached_user
+                return None
                 
         except Exception as e:
             logger.warning(f"Error getting user from request: {e}")

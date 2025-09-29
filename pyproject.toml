@@ -22,6 +22,7 @@ dependencies = [
     "pydantic[email]>=2.5",
     "python-dotenv>=1.0",
     "pydantic-settings>=2.0",
+    "python-multipart>=0.0.6",
     "python-telegram-bot>=20.7",
     "pyjwt>=2.8",
     "redis>=5.0",

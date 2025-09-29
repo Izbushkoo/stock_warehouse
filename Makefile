@@ -18,8 +18,8 @@ docker compose -p $(PROJECT_NAME)-prod -f $(COMPOSE_PROD_FILE)
 endef
 
 .PHONY: help install lint test format check \ \
-        local-build local-up local-down local-logs local-ps local-migrate local-revision local-shell \ \
-        prod-build prod-up prod-down prod-logs prod-ps prod-migrate prod-revision prod-shell \ \
+        local-build local-up local-down local-logs local-ps local-migrate local-revision local-shell local-create-admin create-admin setup-user-cleanup list-cleanup-schedules \ \
+        prod-build prod-up prod-down prod-logs prod-ps prod-migrate prod-revision prod-shell prod-create-admin \ \
         celery-shell
 
 help:
@@ -35,6 +35,10 @@ help:
 	@echo "  make local-migrate      Apply database migrations in local stack"
 	@echo "  make local-revision msg=...  Create Alembic revision via local stack"
 	@echo "  make local-shell        Exec into the local app container"
+	@echo "  make local-create-admin Create system administrator in local stack"
+	@echo "  make create-admin       Create system administrator (local dev, no Docker)"
+	@echo "  make setup-user-cleanup Setup periodic user cleanup schedule"
+	@echo "  make list-cleanup-schedules List all cleanup schedules"
 	@echo "  make prod-build         Build production images"
 	@echo "  make prod-up            Start the production stack with gunicorn"
 	@echo "  make prod-down          Stop the production stack"
@@ -42,6 +46,7 @@ help:
 	@echo "  make prod-migrate       Apply migrations in the production stack"
 	@echo "  make prod-revision msg=...  Create Alembic revision via production stack"
 	@echo "  make prod-shell         Exec into the production app container"
+	@echo "  make prod-create-admin  Create system administrator in production stack"
 	@echo "  make celery-shell       Open a Celery shell in the active stack"
 
 install:
@@ -101,6 +106,22 @@ local-shell:
 	# Open an interactive shell inside the local app container
 	$(compose_local) exec app bash
 
+local-create-admin:
+	# Create system administrator in local stack
+	$(compose_local) exec app python scripts/create_admin_unified.py
+
+create-admin:
+	# Create system administrator (local development, no Docker)
+	python scripts/create_admin_unified.py
+
+setup-user-cleanup:
+	# Setup periodic user cleanup schedule
+	python scripts/setup_user_cleanup_schedule.py
+
+list-cleanup-schedules:
+	# List all cleanup schedules
+	python scripts/setup_user_cleanup_schedule.py list
+
 prod-build:
 	# Build production tagged images
 	$(compose_prod) build
@@ -134,6 +155,10 @@ prod-revision:
 prod-shell:
 	# Shell into the production app container for debugging
 	$(compose_prod) exec app bash
+
+prod-create-admin:
+	# Create system administrator in production stack
+	$(compose_prod) exec app python scripts/create_admin_unified.py
 
 celery-shell:
         # Connect to the Celery shell using STACK=local (default) or STACK=prod

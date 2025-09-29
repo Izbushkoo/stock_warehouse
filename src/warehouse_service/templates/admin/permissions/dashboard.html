@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block title %}Управление разрешениями{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-gray-900">Управление разрешениями</h1>
+        <p class="mt-2 text-gray-600">Управляйте доступом пользователей к инвентарям и складам</p>
+    </div>
+
+    <!-- System Admin Section -->
+    {% if is_system_admin %}
+    <div class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-semibold text-blue-900">Системный администратор</h2>
+                <p class="text-blue-700">У вас есть полные права администратора системы</p>
+            </div>
+            <button onclick="showCreateItemGroupModal()" 
+                    class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Создать инвентарь
+            </button>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Item Groups Section -->
+    <div class="bg-white shadow rounded-lg mb-8">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Мои инвентари</h2>
+        </div>
+        <div class="p-6">
+            {% if item_groups %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for item_group in item_groups %}
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">{{ item_group.item_group_name }}</h3>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                {% if item_group.permission_level == 'owner' %}bg-purple-100 text-purple-800
+                                {% elif item_group.permission_level == 'admin' %}bg-blue-100 text-blue-800
+                                {% elif item_group.permission_level == 'write' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ item_group.permission_level }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-4">Код: {{ item_group.item_group_code }}</p>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="viewItemGroup('{{ item_group.item_group_id }}')" 
+                                    class="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-200">
+                                Просмотр
+                            </button>
+                            {% if item_group.permission_level in ['admin', 'owner'] %}
+                            <button onclick="manageItemGroup('{{ item_group.item_group_id }}')" 
+                                    class="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                                Управление
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">У вас нет доступа к инвентарям</p>
+                    {% if is_system_admin %}
+                    <button onclick="showCreateItemGroupModal()" 
+                            class="mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Создать первый инвентарь
+                    </button>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Warehouses Section -->
+    <div class="bg-white shadow rounded-lg">
+        <div class="px-6 py-4 border-b border-gray-200">
+            <h2 class="text-xl font-semibold text-gray-900">Мои склады</h2>
+        </div>
+        <div class="p-6">
+            {% if warehouses %}
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {% for warehouse in warehouses %}
+                    <div class="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="font-semibold text-gray-900">{{ warehouse.warehouse_name }}</h3>
+                            <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                {% if warehouse.permission_level == 'admin' %}bg-blue-100 text-blue-800
+                                {% elif warehouse.permission_level == 'write' %}bg-green-100 text-green-800
+                                {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                {{ warehouse.permission_level }}
+                            </span>
+                        </div>
+                        <p class="text-sm text-gray-600 mb-2">Код: {{ warehouse.warehouse_code }}</p>
+                        <p class="text-xs text-gray-500 mb-4">Инвентарь: {{ warehouse.item_group_id }}</p>
+                        
+                        <div class="flex space-x-2">
+                            <button onclick="viewWarehouse('{{ warehouse.warehouse_id }}')" 
+                                    class="flex-1 bg-gray-100 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-200">
+                                Просмотр
+                            </button>
+                            {% if warehouse.permission_level == 'admin' %}
+                            <button onclick="manageWarehouse('{{ warehouse.warehouse_id }}')" 
+                                    class="flex-1 bg-blue-600 text-white px-3 py-2 rounded text-sm hover:bg-blue-700">
+                                Управление
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <div class="text-center py-8">
+                    <p class="text-gray-500">У вас нет доступа к складам</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Item Group Modal -->
+<div id="createItemGroupModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Создать инвентарь</h3>
+            </div>
+            <form id="createItemGroupForm" class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Код инвентаря</label>
+                    <input type="text" name="item_group_code" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Название инвентаря</label>
+                    <input type="text" name="item_group_name" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="hideCreateItemGroupModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        Отмена
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Создать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showCreateItemGroupModal() {
+    document.getElementById('createItemGroupModal').classList.remove('hidden');
+}
+
+function hideCreateItemGroupModal() {
+    document.getElementById('createItemGroupModal').classList.add('hidden');
+    document.getElementById('createItemGroupForm').reset();
+}
+
+document.getElementById('createItemGroupForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        item_group_code: formData.get('item_group_code'),
+        item_group_name: formData.get('item_group_name')
+    };
+    
+    try {
+        const response = await fetch('/api/permissions/item-groups?' + new URLSearchParams(data), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Ошибка: ' + error.detail);
+        }
+    } catch (error) {
+        alert('Ошибка при создании инвентаря');
+    }
+});
+
+function viewItemGroup(itemGroupId) {
+    window.location.href = `/admin/permissions/item-groups/${itemGroupId}`;
+}
+
+function manageItemGroup(itemGroupId) {
+    window.location.href = `/admin/permissions/item-groups/${itemGroupId}/manage`;
+}
+
+function viewWarehouse(warehouseId) {
+    window.location.href = `/admin/permissions/warehouses/${warehouseId}`;
+}
+
+function manageWarehouse(warehouseId) {
+    window.location.href = `/admin/permissions/warehouses/${warehouseId}/manage`;
+}
+</script>
+{% endblock %}

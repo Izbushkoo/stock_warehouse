@@ -7,7 +7,8 @@ from fastapi import FastAPI
 from warehouse_service import __version__
 from warehouse_service.config import get_settings
 from warehouse_service.logging import configure_logging
-from warehouse_service.routes import admin_router, api_router, web_router
+from warehouse_service.routes import admin_router, api_router, catalog_router, web_router, permissions_web_router, warehouses_router
+from warehouse_service.routes.user_management import router as user_management_router
 from warehouse_service.middleware.auth import AuthMiddleware
 
 
@@ -27,6 +28,10 @@ def create_app() -> FastAPI:
 
     app.include_router(api_router)
     app.include_router(admin_router)
+    app.include_router(catalog_router)
+    app.include_router(warehouses_router)
+    app.include_router(permissions_web_router)
+    app.include_router(user_management_router)
     app.include_router(web_router)
 
     @app.get("/health", tags=["monitoring"], summary="Return service health status")

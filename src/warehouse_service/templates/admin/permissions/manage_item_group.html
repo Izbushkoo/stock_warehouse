@@ -1,0 +1,288 @@
+{% extends "base.html" %}
+
+{% block title %}Управление инвентарем: {{ item_group.item_group_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8">
+        <nav class="flex mb-4" aria-label="Breadcrumb">
+            <ol class="flex items-center space-x-4">
+                <li><a href="/admin/permissions/" class="text-blue-600 hover:text-blue-800">Разрешения</a></li>
+                <li><span class="text-gray-500">/</span></li>
+                <li><a href="/admin/permissions/item-groups/{{ item_group.item_group_id }}" class="text-blue-600 hover:text-blue-800">{{ item_group.item_group_name }}</a></li>
+                <li><span class="text-gray-500">/</span></li>
+                <li class="text-gray-900">Управление</li>
+            </ol>
+        </nav>
+        
+        <h1 class="text-3xl font-bold text-gray-900">Управление инвентарем</h1>
+        <p class="mt-2 text-gray-600">{{ item_group.item_group_name }} ({{ item_group.item_group_code }})</p>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <!-- Permissions Section -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">Разрешения пользователей</h2>
+                <button onclick="showGrantPermissionModal()" 
+                        class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm">
+                    Добавить пользователя
+                </button>
+            </div>
+            <div class="p-6">
+                {% if permissions %}
+                    <div class="space-y-4">
+                        {% for perm in permissions %}
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ perm.user_name }}</p>
+                                <p class="text-sm text-gray-600">{{ perm.user_email }}</p>
+                                <p class="text-xs text-gray-500">Выдано: {{ perm.granted_at[:10] }}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <span class="px-2 py-1 text-xs font-medium rounded-full 
+                                    {% if perm.permission_level == 'owner' %}bg-purple-100 text-purple-800
+                                    {% elif perm.permission_level == 'admin' %}bg-blue-100 text-blue-800
+                                    {% elif perm.permission_level == 'write' %}bg-green-100 text-green-800
+                                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                                    {{ perm.permission_level }}
+                                </span>
+                                {% if perm.user_id != current_user.app_user_id %}
+                                <button onclick="revokePermission('{{ perm.user_id }}')" 
+                                        class="text-red-600 hover:text-red-800 text-sm">
+                                    Отозвать
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center py-8">Нет дополнительных разрешений</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warehouses Section -->
+        <div class="bg-white shadow rounded-lg">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <h2 class="text-xl font-semibold text-gray-900">Склады</h2>
+                <button onclick="showCreateWarehouseModal()" 
+                        class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 text-sm">
+                    Создать склад
+                </button>
+            </div>
+            <div class="p-6">
+                {% if warehouses %}
+                    <div class="space-y-4">
+                        {% for warehouse in warehouses %}
+                        <div class="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                            <div>
+                                <p class="font-medium text-gray-900">{{ warehouse.warehouse_name }}</p>
+                                <p class="text-sm text-gray-600">{{ warehouse.warehouse_code }}</p>
+                            </div>
+                            <div class="flex items-center space-x-2">
+                                <button onclick="viewWarehouse('{{ warehouse.warehouse_id }}')" 
+                                        class="bg-gray-100 text-gray-700 px-3 py-1 rounded text-sm hover:bg-gray-200">
+                                    Просмотр
+                                </button>
+                                <button onclick="manageWarehouse('{{ warehouse.warehouse_id }}')" 
+                                        class="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700">
+                                    Управление
+                                </button>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                {% else %}
+                    <p class="text-gray-500 text-center py-8">Нет складов</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Grant Permission Modal -->
+<div id="grantPermissionModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Добавить пользователя</h3>
+            </div>
+            <form id="grantPermissionForm" class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Email пользователя</label>
+                    <input type="email" name="user_email" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Уровень доступа</label>
+                    <select name="permission_level" required 
+                            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <option value="read">Чтение</option>
+                        <option value="write">Запись</option>
+                        <option value="admin">Администратор</option>
+                    </select>
+                </div>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="hideGrantPermissionModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        Отмена
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                        Добавить
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Create Warehouse Modal -->
+<div id="createWarehouseModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 hidden z-50">
+    <div class="flex items-center justify-center min-h-screen p-4">
+        <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div class="px-6 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">Создать склад</h3>
+            </div>
+            <form id="createWarehouseForm" class="p-6">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Код склада</label>
+                    <input type="text" name="warehouse_code" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Название склада</label>
+                    <input type="text" name="warehouse_name" required 
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Адрес (опционально)</label>
+                    <textarea name="warehouse_address" rows="2"
+                              class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="flex space-x-3">
+                    <button type="button" onclick="hideCreateWarehouseModal()" 
+                            class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400">
+                        Отмена
+                    </button>
+                    <button type="submit" 
+                            class="flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
+                        Создать
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+const itemGroupId = '{{ item_group.item_group_id }}';
+
+function showGrantPermissionModal() {
+    document.getElementById('grantPermissionModal').classList.remove('hidden');
+}
+
+function hideGrantPermissionModal() {
+    document.getElementById('grantPermissionModal').classList.add('hidden');
+    document.getElementById('grantPermissionForm').reset();
+}
+
+function showCreateWarehouseModal() {
+    document.getElementById('createWarehouseModal').classList.remove('hidden');
+}
+
+function hideCreateWarehouseModal() {
+    document.getElementById('createWarehouseModal').classList.add('hidden');
+    document.getElementById('createWarehouseForm').reset();
+}
+
+document.getElementById('grantPermissionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        user_email: formData.get('user_email'),
+        permission_level: formData.get('permission_level')
+    };
+    
+    try {
+        const response = await fetch(`/api/permissions/item-groups/${itemGroupId}/grant`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Ошибка: ' + error.detail);
+        }
+    } catch (error) {
+        alert('Ошибка при добавлении пользователя');
+    }
+});
+
+document.getElementById('createWarehouseForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const data = {
+        warehouse_code: formData.get('warehouse_code'),
+        warehouse_name: formData.get('warehouse_name'),
+        warehouse_address: formData.get('warehouse_address') || null
+    };
+    
+    try {
+        const response = await fetch(`/api/permissions/item-groups/${itemGroupId}/warehouses?` + new URLSearchParams(data), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            const error = await response.json();
+            alert('Ошибка: ' + error.detail);
+        }
+    } catch (error) {
+        alert('Ошибка при создании склада');
+    }
+});
+
+async function revokePermission(userId) {
+    if (!confirm('Вы уверены, что хотите отозвать разрешение?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/api/permissions/item-groups/${itemGroupId}/permissions/${userId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            location.reload();
+        } else {
+            alert('Ошибка при отзыве разрешения');
+        }
+    } catch (error) {
+        alert('Ошибка при отзыве разрешения');
+    }
+}
+
+function viewWarehouse(warehouseId) {
+    window.location.href = `/admin/permissions/warehouses/${warehouseId}`;
+}
+
+function manageWarehouse(warehouseId) {
+    window.location.href = `/admin/permissions/warehouses/${warehouseId}/manage`;
+}
+</script>
+{% endblock %}

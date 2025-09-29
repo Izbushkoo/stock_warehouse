@@ -53,8 +53,12 @@ class Warehouse(SQLModel, table=True):
     warehouse_address: Optional[str] = None
     time_zone: str = Field(default="Europe/Moscow")
     is_active: bool = Field(default=True)
+    item_group_id: UUID = Field(foreign_key="item_group.item_group_id")
+    created_by: UUID = Field(foreign_key="app_user.app_user_id")
     created_at: datetime = created_at_field()
     updated_at: datetime = updated_at_field()
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    deleted_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     
 
 
@@ -103,7 +107,14 @@ class ItemGroup(SQLModel, table=True):
     item_group_id: UUID = uuid_field()
     item_group_code: str = Field(unique=True, index=True)
     item_group_name: str
+    item_group_description: Optional[str] = Field(default=None)
     handling_policy: Optional[dict] = Field(default=None, sa_column=Column(JSONB))
+    is_active: bool = Field(default=True)
+    created_by: UUID = Field(foreign_key="app_user.app_user_id")
+    created_at: datetime = created_at_field()
+    updated_at: datetime = updated_at_field()
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    deleted_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     
 
 class Item(SQLModel, table=True):
@@ -125,8 +136,11 @@ class Item(SQLModel, table=True):
     is_serial_number_tracked: bool = Field(default=False)
     item_group_id: UUID = Field(foreign_key="item_group.item_group_id")
     item_status: str = Field(default="active")
+    created_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     created_at: datetime = created_at_field()
     updated_at: datetime = updated_at_field()
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    deleted_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     
 
 class Lot(SQLModel, table=True):
@@ -177,8 +191,31 @@ class AppUser(SQLModel, table=True):
     updated_at: datetime = updated_at_field()
     
 
+# Расширяемая система разрешений
+class Permission(SQLModel, table=True):
+    """Flexible permission system for different resource types."""
+    
+    __tablename__ = "permission"
+    __table_args__ = (
+        CheckConstraint("resource_type IN ('item_group', 'warehouse', 'audit', 'marketplace_accounts', 'system')", name='ck_resource_type'),
+        CheckConstraint("permission_level IN ('read', 'write', 'admin', 'owner')", name='ck_permission_level'),
+        UniqueConstraint('app_user_id', 'resource_type', 'resource_id', name='uq_user_resource_permission'),
+    )
+    
+    permission_id: UUID = uuid_field()
+    app_user_id: UUID = Field(foreign_key="app_user.app_user_id")
+    resource_type: str  # item_group, warehouse, audit, marketplace_accounts, system
+    resource_id: UUID  # ID конкретного ресурса (item_group_id, warehouse_id, etc.)
+    permission_level: str  # read, write, admin, owner
+    granted_by: UUID = Field(foreign_key="app_user.app_user_id")
+    granted_at: datetime = created_at_field()
+    expires_at: Optional[datetime] = None
+    is_active: bool = Field(default=True)
+
+
+# Для обратной совместимости - будем постепенно мигрировать
 class WarehouseAccessGrant(SQLModel, table=True):
-    """Granular access control for warehouse operations."""
+    """Legacy granular access control - deprecated, use Permission instead."""
     
     __tablename__ = "warehouse_access_grant"
     __table_args__ = (
@@ -272,6 +309,8 @@ class SalesOrder(SQLModel, table=True):
     created_at: datetime = created_at_field()
     created_by_user_id: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     updated_at: datetime = updated_at_field()
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    deleted_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     
 
 class SalesOrderLine(SQLModel, table=True):
@@ -326,6 +365,9 @@ class ReturnOrder(SQLModel, table=True):
     return_status: str = Field(default="received")
     created_at: datetime = created_at_field()
     created_by_user_id: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
+    updated_at: datetime = updated_at_field()
+    deleted_at: Optional[datetime] = Field(default=None, index=True)
+    deleted_by: Optional[UUID] = Field(default=None, foreign_key="app_user.app_user_id")
     
 
 class ReturnOrderLine(SQLModel, table=True):

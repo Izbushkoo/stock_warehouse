@@ -18,13 +18,37 @@ docker compose -p $(PROJECT_NAME)-prod -f $(COMPOSE_PROD_FILE)
 endef
 
 .PHONY: help install lint test format check \ \
-        local-build local-up local-down local-logs local-ps local-migrate local-revision local-shell local-create-admin create-admin setup-user-cleanup list-cleanup-schedules \ \
+        local-build local-up local-down local-logs local-ps local-migrate local-revision local-shell local-create-admin local-frontend \ \
         prod-build prod-up prod-down prod-logs prod-ps prod-migrate prod-revision prod-shell prod-create-admin \ \
-        celery-shell
+        setup-envs setup-prod-env setup-local-env \ \
+        create-admin setup-user-cleanup list-cleanup-schedules celery-shell
 
 help:
 	@echo "Available commands:"
+	@echo ""
+	@echo "📦 Development:"
+	@echo "  make setup-envs         Set up all environment files"
+	@echo "  make setup-local-env    Set up local development environment"
+	@echo "  make setup-prod-env    Set up production environment"
 	@echo "  make install            Install dependencies locally"
+	@echo ""
+	@echo "🖥️  Local Development:"
+	@echo "  make local-up           Start local development stack (WITH frontend)"
+	@echo "  make local-frontend     Start only frontend dev server"
+	@echo "  make local-down         Stop local development stack"
+	@echo "  make local-logs         Show development logs"
+	@echo ""
+	@echo "🚀 Production:"
+	@echo "  make prod-up            Start production stack"
+	@echo "  make prod-down          Stop production stack"
+	@echo "  make prod-logs          Show production logs"
+	@echo ""
+	@echo "🔧 Database & Admin:"
+	@echo "  make local-migrate      Apply local database migrations"
+	@echo "  make local-create-admin Create local admin user"
+	@echo "  make prod-create-admin  Create production admin user"
+	@echo ""
+	@echo "🧹 Code Quality:"
 	@echo "  make lint               Run static analysis"
 	@echo "  make test               Run the unit test suite"
 	@echo "  make check              Run lint and tests"
@@ -170,10 +194,45 @@ celery-shell:
         fi
 
 celery-sync:
-        # Persist configured periodic tasks to the SQLAlchemy beat backend
-        @stack=${STACK:-local}; \
-        if [ "$$stack" = "prod" ]; then \
-        $(compose_prod) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
-        else \
-        $(compose_local) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
-        fi
+	# Persist configured periodic tasks to the SQLAlchemy beat backend
+	@stack=${STACK:-local}; \
+	if [ "$$stack" = "prod" ]; then \
+	$(compose_prod) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
+	else \
+	$(compose_local) run --rm beat python -m warehouse_service.tasks.scheduler_sync; \
+	fi
+
+# ===== Environment Setup =====
+
+setup-local-env:
+	@echo "Setting up local development environment..."
+	@if [ ! -f .env ]; then \
+		echo "Copying .env.local.example to .env..."; \
+		cp .env.local.example .env; \
+		echo "⚠️  Please edit .env file with your local settings"; \
+	fi
+	@echo "✅ Local environment setup complete!"
+
+setup-prod-env:
+	@echo "Setting up production environment..."
+	@if [ ! -f .env.production ]; then \
+		echo "Copying .env.production.example to .env.production..."; \
+		cp .env.production.example .env.production; \
+		echo "⚠️  Please edit .env.production file with your production settings"; \
+	fi
+	@echo "⚠️  Remember to update FRONTEND_URL to your actual domain!"
+	@echo "✅ Production environment setup complete!"
+
+setup-envs: setup-local-env setup-prod-env
+	@echo "✅ All environments set up!"
+
+# ===== Frontend Development =====
+
+local-frontend:
+	@echo "Starting frontend development server..."
+	@echo "Frontend will be available at: http://localhost:5173"
+	@echo "API will be available at: http://localhost:8000"
+	@echo "API docs at: http://localhost:8000/docs"
+	@echo ""
+	@echo "Make sure backend is running: make local-up"
+	$(compose_local) up frontend --build

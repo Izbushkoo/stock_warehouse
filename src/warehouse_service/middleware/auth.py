@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse, RedirectResponse
+from starlette.responses import JSONResponse
 
 from warehouse_service.auth.auth_service import AuthService
 from warehouse_service.db import session_scope
@@ -45,10 +45,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         "/api/auth/me",
         "/api/auth/permissions", 
         "/api/auth/change-password",
-        "/api/auth/logout",
-        "/auth/logout",
-        "/admin",
-        "/catalog"
+        "/api/auth/logout"
     }
     
     # Permission mapping for API endpoints
@@ -124,7 +121,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         # Add user to request state
         request.state.user = user
         
-        # Add user permissions to request state for templates
+        # Add user permissions to request state for API usage
         if user:
             with session_scope() as session:
                 from warehouse_service.auth.permissions_v2 import PermissionManager, ResourceType
@@ -280,13 +277,6 @@ class AuthMiddleware(BaseHTTPMiddleware):
         if path.startswith("/api/"):
             return True
         
-        # Admin paths require auth
-        if path.startswith("/admin"):
-            return True
-        
-        # Catalog paths require auth
-        if path.startswith("/catalog"):
-            return True
         
         # Auth-only paths
         if path in self.AUTH_ONLY_PATHS:
@@ -343,7 +333,10 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
         
         # For web requests, redirect to login
-        return RedirectResponse(url="/", status_code=302)
+        return JSONResponse(
+            status_code=401,
+            content={"detail": "Authentication required"}
+        )
     
     async def _handle_inactive_user(self, request: Request) -> Response:
         """Handle requests from inactive users."""
@@ -355,4 +348,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
             )
         
         # For web requests, redirect to login with message
-        return RedirectResponse(url="/?error=account_disabled", status_code=302)
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Account is disabled"}
+        )

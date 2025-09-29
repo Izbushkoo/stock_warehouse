@@ -53,6 +53,7 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, alias="API_PORT")
     log_level: str = Field(default="INFO", alias="LOG_LEVEL")
     timezone: str = Field(default="Europe/Minsk", alias="TZ")
+    frontend_url: str | None = Field(default=None, alias="FRONTEND_URL")
     sentry_dsn: str | None = Field(default=None, alias="SENTRY_DSN")
 
     database_url: str = Field(alias="DATABASE_URL")

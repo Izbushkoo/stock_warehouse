@@ -109,7 +109,7 @@ services:
       dockerfile: Dockerfile
       target: preview
       args:
-        VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-http://app:8000}
+        VITE_API_BASE_URL: ${FRONTEND_API_BASE_URL:-https://stock.yarganix.com}
         VITE_PREVIEW_PORT: ${VITE_PREVIEW_PORT:-4173}
     environment:
       PREVIEW_PORT: ${VITE_PREVIEW_PORT:-4173}

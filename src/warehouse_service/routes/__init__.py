@@ -4,14 +4,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from .admin import admin_router
+from .admin_api import admin_api_router as admin_router
 from .auth import auth_router
-from .catalog import catalog_router
 from .permissions import router as permissions_router
-from .permissions_web import router as permissions_web_router
 from .unified import router as unified_router
-from .warehouses import warehouses_router
-from .web import web_router
 
 api_router = APIRouter()
 
@@ -30,4 +26,4 @@ async def status() -> dict[str, str]:
     return {"status": "ok"}
 
 
-__all__ = ["api_router", "admin_router", "catalog_router", "web_router", "permissions_web_router", "warehouses_router"]
+__all__ = ["api_router", "admin_router"]

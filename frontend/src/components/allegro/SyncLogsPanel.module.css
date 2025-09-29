@@ -1,0 +1,76 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  background: #fff;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.select {
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+}
+
+.tableWrapper {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  overflow: hidden;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th,
+.table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.7);
+  text-align: left;
+  font-size: 13px;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+}
+
+.warning {
+  background: rgba(250, 204, 21, 0.2);
+  color: #b45309;
+}
+
+.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.info {
+  background: rgba(96, 165, 250, 0.2);
+  color: #1d4ed8;
+}
+
+.emptyState {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+}

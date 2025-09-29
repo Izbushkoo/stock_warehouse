@@ -38,11 +38,11 @@ const AdminPage = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'users':
-        return <UserManagement currentUser={currentUser} />;
+        return <UserManagement currentUser={currentUser ?? undefined} />;
       case 'catalogs':
         return <CatalogManagement />;
       default:
-        return <UserManagement currentUser={currentUser} />;
+        return <UserManagement currentUser={currentUser ?? undefined} />;
     }
   };
 

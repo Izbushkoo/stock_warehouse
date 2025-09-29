@@ -1,0 +1,258 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+}
+
+.primaryButton {
+  background: linear-gradient(135deg, #38bdf8, #6366f1);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.primaryButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(99, 102, 241, 0.3);
+}
+
+.tokensGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.tokenCard {
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+}
+
+.tokenHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tokenName {
+  font-weight: 600;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.statusActive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #16a34a;
+}
+
+.statusExpired {
+  background: rgba(239, 68, 68, 0.15);
+  color: #b91c1c;
+}
+
+.statusPending {
+  background: rgba(56, 189, 248, 0.15);
+  color: #0284c7;
+}
+
+.statusError {
+  background: rgba(249, 115, 22, 0.15);
+  color: #c2410c;
+}
+
+.metaRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #475569;
+}
+
+.tokenActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.secondaryButton {
+  background: #f8fafc;
+  color: #0f172a;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.secondaryButton:hover {
+  background: #e2e8f0;
+}
+
+.dangerButton {
+  background: rgba(239, 68, 68, 0.12);
+  color: #b91c1c;
+  border: 1px solid rgba(248, 113, 113, 0.4);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dangerButton:hover {
+  background: rgba(248, 113, 113, 0.2);
+}
+
+.defaultBadge {
+  background: rgba(59, 130, 246, 0.15);
+  color: #2563eb;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.errorBox {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.35);
+  border-radius: 10px;
+  padding: 12px;
+  color: #b91c1c;
+  font-size: 13px;
+}
+
+.emptyState {
+  background: #fff;
+  border-radius: 14px;
+  padding: 40px;
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  text-align: center;
+  color: #475569;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+}
+
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  width: min(480px, 92vw);
+  box-shadow: 0 24px 48px rgba(15, 23, 42, 0.18);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modalTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.input {
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.5);
+  padding: 10px 12px;
+  font-size: 14px;
+  transition: border-color 0.2s ease;
+}
+
+.input:focus {
+  border-color: #6366f1;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.modalActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancelButton {
+  background: transparent;
+  border: none;
+  color: #64748b;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.saveButton {
+  background: #0f172a;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.helperText {
+  font-size: 12px;
+  color: #94a3b8;
+}

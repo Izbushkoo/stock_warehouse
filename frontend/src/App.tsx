@@ -6,6 +6,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import AdminPage from './pages/AdminPage';
+import AllegroPage from './pages/AllegroPage';
 import { AuthService } from './services/auth';
 
 const App = () => {
@@ -35,6 +36,7 @@ const App = () => {
       >
         <Route path="/dashboard" element={<DashboardPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/allegro" element={<AllegroPage />} />
         <Route path="/catalog" element={<div>Каталог (в разработке)</div>} />
         <Route path="/warehouses" element={<div>Склады (в разработке)</div>} />
       </Route>

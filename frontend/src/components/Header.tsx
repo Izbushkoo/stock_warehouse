@@ -35,6 +35,9 @@ const Header = ({ user, onLogout }: HeaderProps) => {
           <Link to="/warehouses" className={styles.navLink}>
             Склады
           </Link>
+          <Link to="/allegro" className={styles.navLink}>
+            Allegro backup
+          </Link>
           {user?.permissions.is_admin && (
             <Link to="/admin" className={styles.navLink}>
               Администрирование

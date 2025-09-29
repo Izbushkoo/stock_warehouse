@@ -19,7 +19,7 @@ const Footer = () => {
             <ul className={styles.linkList}>
               <li><a href="/catalog" className={styles.link}>Каталог товаров</a></li>
               <li><a href="/warehouses" className={styles.link}>Управление складами</a></li>
-              <li><a href="/orders" className={styles.link}>Заказы</a></li>
+              <li><a href="/allegro" className={styles.link}>Allegro backup</a></li>
             </ul>
           </div>
           

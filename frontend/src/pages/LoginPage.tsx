@@ -1,6 +1,6 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { login } from '../api/auth';
+import { Link, useNavigate } from 'react-router-dom';
+import { AuthService } from '../services/auth';
 import styles from './AuthForm.module.css';
 
 const LoginPage = () => {
@@ -8,6 +8,7 @@ const LoginPage = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -15,8 +16,13 @@ const LoginPage = () => {
     setError(null);
 
     try {
-      await login({ email, password });
-      // TODO: позже подключим перенаправление на интерфейс после авторизации
+      const response = await AuthService.login({ email, password });
+      
+      // Сохраняем токен в localStorage
+      AuthService.saveToken(response.access_token);
+      
+      // Перенаправляем на главную страницу
+      navigate('/dashboard');
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);

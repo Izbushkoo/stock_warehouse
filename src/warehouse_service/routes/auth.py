@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from typing import List
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from sqlmodel import Session
 
 from warehouse_service.auth import (
@@ -58,6 +59,22 @@ async def get_current_user_info(
     return auth_service.get_user_response(current_user)
 
 
+@auth_router.get("/me/permissions")
+async def get_current_user_with_permissions(
+    request: Request,
+    current_user: AppUser = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Get current user information with permissions."""
+    user_data = auth_service.get_user_response(current_user)
+    user_permissions = getattr(request.state, "user_permissions", {})
+    
+    return {
+        **user_data.model_dump(),
+        "permissions": user_permissions
+    }
+
+
 @auth_router.post("/change-password")
 async def change_password(
     request: PasswordChangeRequest,
@@ -94,6 +111,32 @@ async def get_user_permissions(
         "email": current_user.user_email,
         "permissions": permissions
     }
+
+
+@auth_router.get("/users-test")
+async def test_users_endpoint():
+    """Test endpoint to verify routing works."""
+    return {"message": "Users endpoint is working", "count": 0}
+
+
+@auth_router.get("/users", response_model=List[UserResponse])
+async def list_users(
+    request: Request,
+    current_user: AppUser = Depends(get_current_user),
+    auth_service: AuthService = Depends(get_auth_service)
+):
+    """Get list of all users (admin only)."""
+    # Проверяем права доступа через middleware
+    user_permissions = getattr(request.state, "user_permissions", {})
+    
+    if not (user_permissions.get("is_admin") or user_permissions.get("can_manage_users")):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Insufficient permissions to list users"
+        )
+    
+    users = auth_service.list_users()
+    return [auth_service.get_user_response(user) for user in users]
 
 
 @auth_router.post("/logout")

@@ -1,0 +1,95 @@
+.header {
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.logoLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.nav {
+  display: flex;
+  gap: 2rem;
+  align-items: center;
+}
+
+.navLink {
+  text-decoration: none;
+  color: #64748b;
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.navLink:hover {
+  color: #3b82f6;
+  background-color: #f1f5f9;
+}
+
+.navLink.active {
+  color: #3b82f6;
+  background-color: #eff6ff;
+}
+
+.userSection {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.userName {
+  color: #475569;
+  font-weight: 500;
+}
+
+.logoutBtn {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #64748b;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.logoutBtn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+  
+  .nav {
+    gap: 1rem;
+  }
+  
+  .navLink {
+    padding: 0.5rem;
+    font-size: 0.875rem;
+  }
+  
+  .userName {
+    display: none;
+  }
+}

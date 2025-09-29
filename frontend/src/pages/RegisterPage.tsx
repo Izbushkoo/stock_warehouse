@@ -1,8 +1,8 @@
 import { FormEvent, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../api/auth';
+import { AuthService } from '../services/auth';
 import formStyles from './AuthForm.module.css';
-import styles from './RegisterPage.module.css';
 
 const RegisterPage = () => {
   const [email, setEmail] = useState('');
@@ -10,13 +10,12 @@ const RegisterPage = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     setError(null);
-    setSuccessMessage(null);
 
     if (password !== confirmPassword) {
       setError('Пароли не совпадают.');
@@ -25,12 +24,17 @@ const RegisterPage = () => {
 
     setLoading(true);
     try {
-      await register({ email, password, full_name: fullName });
-      setSuccessMessage('Пользователь создан. Теперь вы можете войти.');
-      setEmail('');
-      setFullName('');
-      setPassword('');
-      setConfirmPassword('');
+      // Регистрируем пользователя
+      await register({ email, password, display_name: fullName });
+
+      // Автоматически выполняем вход
+      const loginResponse = await AuthService.login({ email, password });
+
+      // Сохраняем токен
+      AuthService.saveToken(loginResponse.access_token);
+
+      // Перенаправляем на дашборд
+      navigate('/dashboard');
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -96,10 +100,9 @@ const RegisterPage = () => {
         </label>
 
         {error && <div className={formStyles.error}>{error}</div>}
-        {successMessage && <div className={styles.success}>{successMessage}</div>}
 
         <button type="submit" className={formStyles.submit} disabled={loading}>
-          {loading ? 'Создаём…' : 'Создать аккаунт'}
+          {loading ? 'Создаём аккаунт и входим…' : 'Создать аккаунт'}
         </button>
       </form>
 

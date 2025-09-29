@@ -1,0 +1,142 @@
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  color: #64748b;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f4f6;
+  border-top: 4px solid #3b82f6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.welcome {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.welcome h1 {
+  font-size: 2.5rem;
+  color: #1e293b;
+  margin: 0 0 0.5rem 0;
+}
+
+.welcome p {
+  font-size: 1.125rem;
+  color: #64748b;
+  margin: 0;
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  margin-bottom: 3rem;
+}
+
+.statCard {
+  background: white;
+  padding: 2rem;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+  text-align: center;
+  border: 1px solid #e2e8f0;
+}
+
+.statCard h3 {
+  font-size: 1rem;
+  color: #64748b;
+  margin: 0 0 1rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.statNumber {
+  font-size: 3rem;
+  font-weight: 700;
+  color: #3b82f6;
+  margin: 0 0 0.5rem 0;
+}
+
+.statCard p {
+  color: #64748b;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.adminSection {
+  background: linear-gradient(135deg, #eff6ff, #dbeafe);
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #bfdbfe;
+}
+
+.adminSection h2 {
+  color: #1e40af;
+  margin: 0 0 0.5rem 0;
+}
+
+.adminSection p {
+  color: #3730a3;
+  margin: 0 0 1.5rem 0;
+}
+
+.adminActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.adminButton {
+  background: #3b82f6;
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  text-decoration: none;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.adminButton:hover {
+  background: #2563eb;
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 1rem 0.5rem;
+  }
+  
+  .welcome h1 {
+    font-size: 2rem;
+  }
+  
+  .stats {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+  
+  .statCard {
+    padding: 1.5rem;
+  }
+  
+  .adminSection {
+    padding: 1.5rem;
+  }
+}

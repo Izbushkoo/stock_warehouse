@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
 *.egg-info/
-.eggs/
+*.eggs/
 .env
 .env.local
 .env.*.backup
@@ -14,3 +14,5 @@ ruff_cache/
 coverage.xml
 htmlcov/
 celerybeat-schedule
+frontend/node_modules
+frontend/dist
